@@ -5,7 +5,15 @@ from pathlib import Path
 from typing import Any, Dict, Optional
 
 from PyQt5.QtCore import QPoint, QRect, QSize, Qt, pyqtSignal
-from PyQt5.QtGui import QColor, QGuiApplication, QPainter, QBrush, QTextFormat
+from PyQt5.QtGui import (
+    QColor,
+    QGuiApplication,
+    QLinearGradient,
+    QPainter,
+    QPainterPath,
+    QBrush,
+    QTextFormat,
+)
 from PyQt5.QtWidgets import (
     QAction,
     QApplication,
@@ -74,18 +82,11 @@ class CodeEditor(QPlainTextEdit):
         super().__init__(parent)
         self._line_number_area = LineNumberArea(self)
         self._current_theme = Theme.LIGHT
+        self._apply_theme_stylesheet()
 
         self.setTabChangesFocus(False)
         self.setLineWrapMode(QPlainTextEdit.NoWrap)
         self.setPlaceholderText("在此粘贴或键入 JSON 数据…")
-        self.setStyleSheet(
-            "QPlainTextEdit {"
-            " font-family: 'Cascadia Code', 'JetBrains Mono', monospace;"
-            " font-size: 13px;"
-            " border-radius: 8px;"
-            " padding: 12px;"
-            " }"
-        )
 
         self.blockCountChanged.connect(self._update_line_number_area_width)
         self.updateRequest.connect(self._update_line_number_area)
@@ -165,8 +166,72 @@ class CodeEditor(QPlainTextEdit):
 
     def set_theme(self, theme: Theme) -> None:
         self._current_theme = theme
+        self._apply_theme_stylesheet()
         self._highlight_current_line()
         self._line_number_area.update()
+
+    def _apply_theme_stylesheet(self) -> None:
+        if self._current_theme == Theme.DARK:
+            background = "rgba(34, 37, 45, 240)"
+            foreground = "rgba(222, 226, 235, 220)"
+            border = "rgba(80, 90, 110, 160)"
+            selection_bg = "rgba(86, 99, 135, 180)"
+            selection_fg = "rgba(245, 248, 255, 230)"
+        else:
+            background = "rgba(255, 255, 255, 0.96)"
+            foreground = "rgba(43, 48, 60, 220)"
+            border = "rgba(120, 130, 150, 90)"
+            selection_bg = "rgba(135, 169, 255, 120)"
+            selection_fg = "rgba(20, 25, 38, 220)"
+
+        self.setStyleSheet(
+            "QPlainTextEdit {"
+            " font-family: 'Cascadia Code', 'JetBrains Mono', monospace;"
+            " font-size: 13px;"
+            " border-radius: 8px;"
+            " padding: 12px;"
+            f" background-color: {background};"
+            f" color: {foreground};"
+            f" border: 1px solid {border};"
+            f" selection-background-color: {selection_bg};"
+            f" selection-color: {selection_fg};"
+            " }"
+        )
+
+
+class GradientHeroCard(CardWidget):
+    """Hero banner with theme-aware gradient rendering."""
+
+    def __init__(self, parent: Optional[QWidget] = None) -> None:
+        super().__init__(parent)
+        self.setObjectName("heroCard")
+        self.setAttribute(Qt.WA_StyledBackground, True)
+        self._current_theme = Theme.LIGHT
+        self._light_colors = (QColor(79, 157, 255), QColor(109, 91, 255))
+        self._dark_colors = (QColor(75, 91, 220), QColor(58, 122, 254))
+
+    def set_theme(self, theme: Theme) -> None:
+        if theme == self._current_theme:
+            return
+        self._current_theme = theme
+        self.update()
+
+    def paintEvent(self, event) -> None:  # type: ignore[override]
+        super().paintEvent(event)
+        painter = QPainter(self)
+        painter.setRenderHint(QPainter.Antialiasing)
+        rect = self.rect().adjusted(1, 1, -1, -1)
+        path = QPainterPath()
+        radius = 22.0
+        path.addRoundedRect(rect, radius, radius)
+
+        start_color, end_color = (
+            self._dark_colors if self._current_theme == Theme.DARK else self._light_colors
+        )
+        gradient = QLinearGradient(rect.topLeft(), rect.bottomRight())
+        gradient.setColorAt(0.0, start_color)
+        gradient.setColorAt(1.0, end_color)
+        painter.fillPath(path, gradient)
 
 
 class JsonWorkspace(QWidget):
@@ -207,9 +272,11 @@ class JsonWorkspace(QWidget):
     def __init__(self, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
         self._current_scheme = "清新配色"
+        self._theme = Theme.LIGHT
         self._build_ui()
         self._connect_signals()
         self.apply_color_scheme(self._current_scheme)
+        self.apply_theme(self._theme)
 
     # ------------------------------------------------------------------
     # UI construction
@@ -228,9 +295,6 @@ class JsonWorkspace(QWidget):
         self._tree.setUniformRowHeights(True)
         self._tree.setAnimated(True)
         self._tree.setContextMenuPolicy(Qt.CustomContextMenu)
-
-        self._status_label = CaptionLabel("准备就绪。", self)
-        self._status_label.setObjectName("statusLabel")
 
         self._path_display = LineEdit(self)
         self._path_display.setPlaceholderText("选择节点后显示完整 JSON 路径")
@@ -345,7 +409,6 @@ class JsonWorkspace(QWidget):
         detail_layout.addWidget(self._value_preview)
 
         output_layout.addWidget(detail_card)
-        output_layout.addWidget(self._status_label)
 
         self._apply_card_shadows(input_card, output_card, detail_card)
 
@@ -390,13 +453,6 @@ class JsonWorkspace(QWidget):
             return
 
         self._populate_tree(data)
-        InfoBar.success(
-            title="解析完成",
-            content="JSON 数据解析成功。",
-            parent=self.window(),
-            position=InfoBarPosition.TOP,
-            duration=1500,
-        )
 
     def format_json(self) -> None:
         raw = self._editor.toPlainText().strip()
@@ -410,14 +466,7 @@ class JsonWorkspace(QWidget):
             return
         formatted = json.dumps(data, indent=4, ensure_ascii=False)
         self._editor.setPlainText(formatted)
-        self._status_label.setText("已格式化 JSON 文本。")
-        InfoBar.success(
-            title="格式化完成",
-            content="JSON 已重新排版。",
-            parent=self.window(),
-            position=InfoBarPosition.TOP,
-            duration=1500,
-        )
+        self._show_status("已格式化 JSON 文本。")
 
     def clear_all(self) -> None:
         self._editor.clear()
@@ -427,7 +476,7 @@ class JsonWorkspace(QWidget):
         self._copy_path_button.setEnabled(False)
         self._copy_value_button.setEnabled(False)
         self._value_preview.setPlainText("选择节点以查看完整的 JSON 值…")
-        self._status_label.setText("已清空所有内容。")
+        self._show_status("已清空所有内容。")
         self.titleChanged.emit("新数据页")
 
     def set_text(self, text: str) -> None:
@@ -440,6 +489,7 @@ class JsonWorkspace(QWidget):
         self._refresh_tree_colors()
 
     def apply_theme(self, theme: Theme) -> None:
+        self._theme = theme
         self._editor.set_theme(theme)
         if theme == Theme.DARK:
             self._value_preview.setStyleSheet(
@@ -448,10 +498,21 @@ class JsonWorkspace(QWidget):
                 " font-size: 12px;"
                 " border-radius: 10px;"
                 " padding: 10px;"
-                " background-color: rgba(36, 38, 46, 220);"
-                " color: rgba(235, 238, 245, 220);"
+                " background-color: rgba(32, 35, 44, 235);"
+                " color: rgba(232, 236, 245, 220);"
+                " selection-background-color: rgba(92, 110, 150, 180);"
+                " selection-color: rgba(245, 248, 255, 230);"
+                " border: 1px solid rgba(78, 86, 110, 150);"
                 " }"
             )
+            tree_bg = "rgba(42, 45, 56, 240)"
+            tree_alt_bg = "rgba(49, 53, 65, 240)"
+            tree_border = "rgba(70, 78, 102, 150)"
+            tree_text = "rgba(226, 230, 240, 220)"
+            header_bg = "rgba(58, 62, 78, 255)"
+            header_text = "rgba(225, 229, 240, 220)"
+            selection_bg = "rgba(88, 110, 150, 190)"
+            selection_text = "rgba(244, 248, 255, 230)"
         else:
             self._value_preview.setStyleSheet(
                 "QPlainTextEdit#valuePreview {"
@@ -459,10 +520,49 @@ class JsonWorkspace(QWidget):
                 " font-size: 12px;"
                 " border-radius: 10px;"
                 " padding: 10px;"
-                " background-color: rgba(255, 255, 255, 235);"
-                " color: rgba(30, 30, 30, 200);"
+                " background-color: rgba(255, 255, 255, 0.95);"
+                " color: rgba(30, 33, 44, 210);"
+                " selection-background-color: rgba(135, 169, 255, 120);"
+                " selection-color: rgba(24, 32, 45, 220);"
+                " border: 1px solid rgba(170, 180, 200, 120);"
                 " }"
             )
+            tree_bg = "rgba(255, 255, 255, 0.98)"
+            tree_alt_bg = "rgba(245, 248, 255, 0.98)"
+            tree_border = "rgba(185, 195, 215, 110)"
+            tree_text = "rgba(44, 48, 60, 220)"
+            header_bg = "rgba(239, 241, 248, 230)"
+            header_text = "rgba(75, 82, 100, 220)"
+            selection_bg = "rgba(135, 169, 255, 120)"
+            selection_text = "rgba(24, 32, 45, 220)"
+
+        self._tree.setStyleSheet(
+            f"""
+            QTreeWidget {{
+                background-color: {tree_bg};
+                alternate-background-color: {tree_alt_bg};
+                border: 1px solid {tree_border};
+                border-radius: 12px;
+                color: {tree_text};
+                padding: 4px;
+            }}
+            QTreeWidget::item {{
+                height: 28px;
+            }}
+            QTreeWidget::item:selected {{
+                background-color: {selection_bg};
+                color: {selection_text};
+            }}
+            QHeaderView::section {{
+                background-color: {header_bg};
+                color: {header_text};
+                border: none;
+                padding: 6px 10px;
+                font-weight: 500;
+            }}
+            """
+        )
+        self._refresh_tree_colors()
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -480,7 +580,7 @@ class JsonWorkspace(QWidget):
             self._show_error(f"无法读取文件: {exc}")
             return
         self._editor.setPlainText(content)
-        self._status_label.setText(f"已加载文件：{file_path.name}")
+        self._show_status(f"已加载文件：{file_path.name}")
         self.titleChanged.emit(file_path.name)
 
     def _populate_tree(self, data: Any) -> None:
@@ -512,7 +612,7 @@ class JsonWorkspace(QWidget):
             self._apply_filter(keyword)
         else:
             self._reset_filter()
-        self._status_label.setText(self._summarize_data(data))
+        self._show_status(self._summarize_data(data))
         self._refresh_tree_colors()
 
     def _create_tree_item(self, key: str, value: Any, path: str) -> Optional[QTreeWidgetItem]:
@@ -663,7 +763,7 @@ class JsonWorkspace(QWidget):
             _filter(self._tree.topLevelItem(index))
 
         self._tree.setUpdatesEnabled(True)
-        self._status_label.setText(f"已找到 {total_match} 个匹配节点。")
+        self._show_status(f"已找到 {total_match} 个匹配节点。")
 
     def _reset_filter(self) -> None:
         self._tree.setUpdatesEnabled(False)
@@ -671,7 +771,7 @@ class JsonWorkspace(QWidget):
             self._show_item_recursive(self._tree.topLevelItem(index))
         self._tree.setUpdatesEnabled(True)
         visible = self._count_visible_items()
-        self._status_label.setText(f"当前可见节点 {visible} 个。")
+        self._show_status(f"当前可见节点 {visible} 个。")
 
     def _show_item_recursive(self, item: QTreeWidgetItem) -> None:
         item.setHidden(False)
@@ -698,7 +798,13 @@ class JsonWorkspace(QWidget):
 
         def _apply(item: QTreeWidgetItem) -> None:
             type_name = item.data(0, Qt.UserRole + 2)
-            color = palette.get(type_name, palette.get("default", QColor("#444")))
+            base_color = palette.get(type_name, palette.get("default", QColor("#444")))
+            color = QColor(base_color)
+            if self._theme == Theme.DARK:
+                color = color.lighter(135)
+                color.setAlpha(235)
+            else:
+                color.setAlpha(255)
             for column in range(2):
                 item.setForeground(column, QBrush(color))
             for idx in range(item.childCount()):
@@ -724,6 +830,14 @@ class JsonWorkspace(QWidget):
         )
         QMessageBox.critical(self, "错误", message)
 
+    def _show_status(self, message: str, timeout: int = 3500) -> None:
+        window = self.window()
+        if window is None:
+            return
+        callback = getattr(window, "show_status_message", None)
+        if callable(callback):
+            callback(message, timeout)
+
     def _apply_card_shadows(self, *cards: CardWidget) -> None:
         for card in cards:
             shadow = QGraphicsDropShadowEffect(card)
@@ -745,8 +859,7 @@ class JsonParserWindow(QMainWindow):
         self._current_theme = Theme.LIGHT
         setTheme(self._current_theme)
 
-        self._hero_card = CardWidget(self)
-        self._hero_card.setObjectName("heroCard")
+        self._hero_card = GradientHeroCard(self)
         self._theme_combo = ComboBox(self)
         self._new_tab_button = PrimaryPushButton("新建数据页", self)
         self._new_tab_button.setIcon(FluentIcon.ADD.icon())
@@ -758,9 +871,13 @@ class JsonParserWindow(QMainWindow):
         self._tab_widget.tabCloseRequested.connect(self._close_tab)
         self._tab_widget.currentChanged.connect(self._on_tab_changed)
 
+        self._status_bar = self.statusBar()
+        self._status_bar.setSizeGripEnabled(False)
+
         self._build_ui()
         self._apply_global_styles(self._current_theme)
         self._add_workspace("数据页 1")
+        self.show_status_message("准备就绪。", 2000)
 
     # ------------------------------------------------------------------
     # UI assembly
@@ -798,6 +915,10 @@ class JsonParserWindow(QMainWindow):
         controls_layout.addWidget(self._new_tab_button)
         self._new_tab_button.clicked.connect(self._create_new_tab)
 
+    def show_status_message(self, message: str, timeout: int = 3500) -> None:
+        if hasattr(self, "_status_bar") and self._status_bar is not None:
+            self._status_bar.showMessage(message, timeout)
+
         central = QWidget(self)
         central.setObjectName("centralWidget")
         layout = QVBoxLayout(central)
@@ -815,9 +936,9 @@ class JsonParserWindow(QMainWindow):
     def _apply_card_shadows(self, *cards: CardWidget) -> None:
         for card in cards:
             shadow = QGraphicsDropShadowEffect(card)
-            shadow.setBlurRadius(30)
+            shadow.setBlurRadius(28)
             shadow.setXOffset(0)
-            shadow.setYOffset(14)
+            shadow.setYOffset(12)
             shadow.setColor(QColor(20, 20, 20, 35))
             card.setGraphicsEffect(shadow)
 
@@ -871,26 +992,34 @@ class JsonParserWindow(QMainWindow):
     def _apply_global_styles(self, theme: Theme) -> None:
         if theme == Theme.DARK:
             central_bg = "#1f212a"
-            hero_gradient = "qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #4b5bdc, stop:1 #3a7afe)"
             card_bg = "rgba(42, 45, 56, 235)"
             detail_bg = "rgba(33, 35, 44, 230)"
             text_color = "rgba(230, 235, 245, 220)"
-            status_color = "rgba(190, 198, 216, 190)"
+            status_color = "rgba(198, 205, 220, 200)"
+            line_edit_bg = "rgba(38, 41, 52, 235)"
+            line_edit_fg = "rgba(225, 230, 245, 220)"
+            line_edit_border = "rgba(78, 86, 110, 160)"
+            status_bar_bg = "rgba(29, 31, 40, 245)"
+            status_bar_border = "rgba(64, 70, 90, 160)"
         else:
             central_bg = "#f3f5fb"
-            hero_gradient = "qlineargradient(x1:0, y1:0, x2:1, y2:1, stop:0 #4f9dff, stop:1 #6d5bff)"
             card_bg = "rgba(255, 255, 255, 235)"
             detail_bg = "rgba(248, 249, 254, 230)"
             text_color = "rgba(40, 45, 60, 220)"
             status_color = "rgba(70, 80, 110, 180)"
+            line_edit_bg = "rgba(255, 255, 255, 0.98)"
+            line_edit_fg = "rgba(40, 45, 60, 220)"
+            line_edit_border = "rgba(160, 170, 190, 110)"
+            status_bar_bg = "rgba(255, 255, 255, 230)"
+            status_bar_border = "rgba(210, 215, 230, 160)"
 
         stylesheet = f"""
             #centralWidget {{
                 background: {central_bg};
             }}
             CardWidget#heroCard {{
-                background: {hero_gradient};
                 border-radius: 22px;
+                background-color: transparent;
                 color: white;
             }}
             BodyLabel#heroTitle {{ font-size: 28px; font-weight: 600; }}
@@ -911,22 +1040,27 @@ class JsonParserWindow(QMainWindow):
                 border-radius: 10px;
                 padding: 6px 12px;
                 font-size: 13px;
+                background-color: {line_edit_bg};
+                color: {line_edit_fg};
+                border: 1px solid {line_edit_border};
             }}
             LineEdit#filterBox {{ min-width: 240px; }}
             BodyLabel#cardTitle {{ font-size: 16px; font-weight: 600; color: {text_color}; }}
-            QTreeWidget {{
-                background: {card_bg};
-                border-radius: 12px;
-                padding: 4px;
-            }}
-            QTreeWidget::item {{ height: 28px; }}
             PrimaryPushButton, PushButton {{
                 border-radius: 18px;
                 padding: 6px 14px;
             }}
-            CaptionLabel#statusLabel {{ color: {status_color}; }}
+            QStatusBar {{
+                background-color: {status_bar_bg};
+                color: {status_color};
+                border-top: 1px solid {status_bar_border};
+            }}
+            QStatusBar::item {{
+                border: none;
+            }}
         """
         self.setStyleSheet(stylesheet)
+        self._hero_card.set_theme(theme)
 
 
 def main() -> None:
