@@ -264,7 +264,7 @@ class JsonWorkspace(QWidget):
         self._format_button = PushButton("格式化", self)
         self._format_button.setIcon(FluentIcon.CODE.icon())
         self._load_button = PushButton("打开文件", self)
-        self._load_button.setIcon(FluentIcon.FOLDER_OPEN.icon())
+        self._load_button.setIcon(FluentIcon.FOLDER.icon())
         self._clear_button = PushButton("清空", self)
         self._clear_button.setIcon(FluentIcon.DELETE.icon())
 
