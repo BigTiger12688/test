@@ -13,6 +13,7 @@ from PyQt5.QtGui import (
     QPainter,
     QPainterPath,
     QBrush,
+    QPen,
     QTextFormat,
 )
 from PyQt5.QtWidgets import (
@@ -132,8 +133,29 @@ class CodeEditor(QPlainTextEdit):
 
     def paint_line_number_area(self, event) -> None:
         painter = QPainter(self._line_number_area)
+        painter.setRenderHint(QPainter.Antialiasing)
         palette = self._palette_for_theme()
-        painter.fillRect(event.rect(), palette["background"])
+        full_rect = self._line_number_area.rect()
+        radius = 12
+
+        background_path = QPainterPath()
+        background_path.moveTo(full_rect.right(), full_rect.top())
+        background_path.lineTo(full_rect.left() + radius, full_rect.top())
+        background_path.quadTo(full_rect.left(), full_rect.top(), full_rect.left(), full_rect.top() + radius)
+        background_path.lineTo(full_rect.left(), full_rect.bottom() - radius)
+        background_path.quadTo(full_rect.left(), full_rect.bottom(), full_rect.left() + radius, full_rect.bottom())
+        background_path.lineTo(full_rect.right(), full_rect.bottom())
+        background_path.closeSubpath()
+        painter.fillPath(background_path, palette["background"])
+
+        border_pen = QPen(palette["border"])
+        border_pen.setWidthF(1.0)
+        painter.setPen(border_pen)
+        painter.drawLine(full_rect.left(), full_rect.top() + radius, full_rect.left(), full_rect.bottom() - radius)
+        painter.drawArc(full_rect.left(), full_rect.top(), radius * 2, radius * 2, 90 * 16, 90 * 16)
+        painter.drawArc(
+            full_rect.left(), full_rect.bottom() - radius * 2, radius * 2, radius * 2, 180 * 16, 90 * 16
+        )
 
         block = self.firstVisibleBlock()
         block_number = block.blockNumber()
@@ -205,13 +227,28 @@ class CodeEditor(QPlainTextEdit):
             "QPlainTextEdit {"
             " font-family: 'Cascadia Code', 'JetBrains Mono', monospace;"
             " font-size: 13px;"
-            " border-radius: 8px;"
+            " border-radius: 12px;"
+            " border-top-left-radius: 0px;"
+            " border-bottom-left-radius: 0px;"
             " padding: 12px;"
             f" background-color: {background};"
             f" color: {foreground};"
             f" border: 1px solid {border};"
+            " border-left: 0px;"
             f" selection-background-color: {selection_bg};"
             f" selection-color: {selection_fg};"
+            " }"
+        )
+        self._line_number_area.setStyleSheet(
+            "QWidget {"
+            f" background-color: {background};"
+            f" color: {foreground};"
+            f" border: 1px solid {border};"
+            " border-right: 0px;"
+            " border-top-right-radius: 0px;"
+            " border-bottom-right-radius: 0px;"
+            " border-top-left-radius: 12px;"
+            " border-bottom-left-radius: 12px;"
             " }"
         )
 
@@ -403,13 +440,29 @@ class JsonWorkspace(QWidget):
         self._collapse_button = PushButton("折叠全部", self)
         self._collapse_button.setIcon(FluentIcon.ZOOM_OUT.icon())
 
+        button_height = 40
+        button_min_width = 128
+        for btn in (
+            self._parse_button,
+            self._format_button,
+            self._load_button,
+            self._clear_button,
+            self._copy_path_button,
+            self._copy_value_button,
+            self._expand_button,
+            self._collapse_button,
+        ):
+            btn.setFixedHeight(button_height)
+            btn.setMinimumWidth(button_min_width)
+
         path_bar = QHBoxLayout()
         path_bar.setSpacing(12)
         path_bar.addWidget(self._path_display, 1)
         path_bar.addWidget(self._copy_path_button)
+        path_bar.addWidget(self._copy_value_button)
 
         button_bar = QHBoxLayout()
-        button_bar.setSpacing(14)
+        button_bar.setSpacing(12)
         button_bar.addWidget(self._parse_button)
         button_bar.addWidget(self._format_button)
         button_bar.addWidget(self._load_button)
@@ -453,20 +506,14 @@ class JsonWorkspace(QWidget):
         detail_card.setObjectName("detailCard")
         detail_layout = QVBoxLayout(detail_card)
         detail_layout.setContentsMargins(18, 18, 18, 18)
-        detail_layout.setSpacing(12)
+        detail_layout.setSpacing(14)
 
         path_label_row = QHBoxLayout()
         path_label_row.addWidget(CaptionLabel("JSON 路径", detail_card))
         path_label_row.addStretch(1)
         detail_layout.addLayout(path_label_row)
         detail_layout.addLayout(path_bar)
-
-        value_label_row = QHBoxLayout()
-        value_label_row.addWidget(CaptionLabel("节点值", detail_card))
-        value_label_row.addStretch(1)
-        value_label_row.addWidget(self._copy_value_button)
-        detail_layout.addLayout(value_label_row)
-        detail_layout.addWidget(self._value_preview)
+        detail_layout.addWidget(self._value_preview, 1)
 
         output_layout.addWidget(detail_card)
 
@@ -489,6 +536,7 @@ class JsonWorkspace(QWidget):
         splitter.setStretchFactor(0, 3)
         splitter.setStretchFactor(1, 4)
         splitter.setChildrenCollapsible(False)
+        splitter.setHandleWidth(16)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
@@ -613,12 +661,15 @@ class JsonWorkspace(QWidget):
                 background-color: {tree_bg};
                 alternate-background-color: {tree_alt_bg};
                 border: 1px solid {tree_border};
-                border-radius: 12px;
+                border-radius: 14px;
                 color: {tree_text};
-                padding: 4px;
+                padding: 6px;
             }}
             QTreeWidget::item {{
-                height: 28px;
+                height: 30px;
+                margin: 2px 0px;
+                padding: 4px 8px;
+                border-radius: 8px;
             }}
             QTreeWidget::item:selected {{
                 background-color: {selection_bg};
@@ -628,8 +679,18 @@ class JsonWorkspace(QWidget):
                 background-color: {header_bg};
                 color: {header_text};
                 border: none;
-                padding: 6px 10px;
+                padding: 8px 14px;
                 font-weight: 500;
+                font-size: 13px;
+            }}
+            QHeaderView::section:first {{
+                border-top-left-radius: 12px;
+            }}
+            QHeaderView::section:last {{
+                border-top-right-radius: 12px;
+            }}
+            QHeaderView::section:horizontal {{
+                margin: 0px;
             }}
             """
         )
@@ -953,6 +1014,8 @@ class JsonParserWindow(QMainWindow):
         self._theme_combo = ComboBox(self)
         self._new_tab_button = PrimaryPushButton("新建数据页", self)
         self._new_tab_button.setIcon(FluentIcon.ADD.icon())
+        self._new_tab_button.setFixedHeight(40)
+        self._new_tab_button.setMinimumWidth(128)
 
         self._tab_widget = QTabWidget(self)
         self._tab_widget.setDocumentMode(True)
@@ -1101,30 +1164,32 @@ class JsonParserWindow(QMainWindow):
                 "status_bg": "#21232c",
                 "status_fg": "rgba(220, 225, 236, 220)",
                 "status_border": "rgba(70, 78, 102, 170)",
-                "primary_bg": "#4b6dff",
-                "primary_bg_hover": "#5d7cff",
-                "primary_bg_press": "#3f5bd6",
-                "primary_fg": "#f4f7ff",
-                "secondary_bg": "#343744",
-                "secondary_bg_hover": "#3f4252",
-                "secondary_bg_press": "#2e313d",
-                "secondary_fg": "rgba(220, 226, 240, 220)",
-                "secondary_border": "rgba(96, 106, 136, 180)",
-                "secondary_border_hover": "rgba(124, 134, 168, 200)",
-                "danger_bg": "#c24b4b",
-                "danger_hover": "#d85a5a",
-                "danger_press": "#a83f3f",
-                "danger_border": "#de6f6f",
-                "danger_fg": "#fff5f5",
-                "tab_active_bg": "#3b3f52",
-                "tab_active_border": "rgba(96, 106, 136, 180)",
+                "primary_bg": "#4c6dff",
+                "primary_bg_hover": "#5f7cff",
+                "primary_bg_press": "#3f59d6",
+                "primary_fg": "#f6f8ff",
+                "secondary_bg": "#373c4f",
+                "secondary_bg_hover": "#43485b",
+                "secondary_bg_press": "#2f3444",
+                "secondary_fg": "rgba(226, 230, 242, 220)",
+                "secondary_border": "rgba(108, 120, 155, 200)",
+                "secondary_border_hover": "rgba(134, 146, 182, 220)",
+                "danger_bg": "#d36262",
+                "danger_hover": "#df7272",
+                "danger_press": "#b75151",
+                "danger_border": "#eb8a8a",
+                "danger_fg": "#fff6f6",
+                "tab_active_bg": "#3f4257",
+                "tab_active_border": "rgba(110, 124, 170, 200)",
                 "tab_active_fg": "#f1f3fa",
-                "tab_inactive_fg": "rgba(160, 170, 200, 200)",
-                "tab_hover_bg": "#2f3242",
-                "scrollbar_bg": "#2a2d38",
-                "scrollbar_handle": "#6772a2",
-                "scrollbar_handle_hover": "#7a85b8",
-                "scrollbar_handle_pressed": "#596394",
+                "tab_inactive_fg": "rgba(165, 176, 210, 210)",
+                "tab_hover_bg": "#2f3346",
+                "tab_close_hover": "rgba(79, 110, 255, 0.22)",
+                "tab_close_press": "rgba(79, 110, 255, 0.32)",
+                "scrollbar_bg": "#2b2e3a",
+                "scrollbar_handle": "#6d77a8",
+                "scrollbar_handle_hover": "#7d88ba",
+                "scrollbar_handle_pressed": "#5f6796",
                 "hero_signature": "rgba(255, 255, 255, 215)",
             }
         else:
@@ -1145,30 +1210,32 @@ class JsonParserWindow(QMainWindow):
                 "status_bg": "#ffffff",
                 "status_fg": "rgba(40, 45, 60, 220)",
                 "status_border": "rgba(200, 210, 230, 150)",
-                "primary_bg": "#3f6fff",
-                "primary_bg_hover": "#5c85ff",
-                "primary_bg_press": "#2f56d6",
+                "primary_bg": "#4f6eff",
+                "primary_bg_hover": "#6380ff",
+                "primary_bg_press": "#3a58d6",
                 "primary_fg": "#ffffff",
-                "secondary_bg": "#f1f4ff",
-                "secondary_bg_hover": "#e8edff",
-                "secondary_bg_press": "#dde4ff",
-                "secondary_fg": "rgba(60, 68, 92, 220)",
-                "secondary_border": "rgba(170, 180, 205, 150)",
-                "secondary_border_hover": "rgba(150, 162, 195, 170)",
-                "danger_bg": "#ed5c5c",
-                "danger_hover": "#f26e6e",
-                "danger_press": "#d84f4f",
-                "danger_border": "#f49797",
-                "danger_fg": "#fff9f9",
+                "secondary_bg": "#eef1ff",
+                "secondary_bg_hover": "#e5e9ff",
+                "secondary_bg_press": "#d7defe",
+                "secondary_fg": "rgba(55, 64, 92, 220)",
+                "secondary_border": "rgba(166, 178, 216, 170)",
+                "secondary_border_hover": "rgba(140, 154, 204, 190)",
+                "danger_bg": "#f06464",
+                "danger_hover": "#f27878",
+                "danger_press": "#d85757",
+                "danger_border": "#f6a1a1",
+                "danger_fg": "#fff7f7",
                 "tab_active_bg": "#ffffff",
-                "tab_active_border": "rgba(200, 210, 230, 150)",
+                "tab_active_border": "rgba(200, 210, 230, 160)",
                 "tab_active_fg": "rgba(40, 45, 60, 220)",
-                "tab_inactive_fg": "rgba(120, 132, 160, 200)",
-                "tab_hover_bg": "#e8edff",
-                "scrollbar_bg": "#e4e8f5",
-                "scrollbar_handle": "#9faad4",
-                "scrollbar_handle_hover": "#8a96c7",
-                "scrollbar_handle_pressed": "#6f7cb5",
+                "tab_inactive_fg": "rgba(120, 132, 160, 210)",
+                "tab_hover_bg": "#e4e9ff",
+                "tab_close_hover": "rgba(79, 110, 255, 0.14)",
+                "tab_close_press": "rgba(79, 110, 255, 0.24)",
+                "scrollbar_bg": "#e6e9f6",
+                "scrollbar_handle": "#a6b0dd",
+                "scrollbar_handle_hover": "#909cce",
+                "scrollbar_handle_pressed": "#7784be",
                 "hero_signature": "rgba(255, 255, 255, 220)",
             }
 
@@ -1184,7 +1251,7 @@ class JsonParserWindow(QMainWindow):
             }
             BodyLabel#heroTitle { font-size: 28px; font-weight: 600; }
             CaptionLabel#heroSubtitle { font-size: 14px; color: rgba(255, 255, 255, 210); }
-            CaptionLabel#heroSignature { font-size: 13px; color: ${hero_signature}; margin-top: 4px; }
+            CaptionLabel#heroSignature { font-size: 16px; font-weight: 500; letter-spacing: 0.4px; color: ${hero_signature}; margin-top: 6px; }
             CardWidget#controlsCard {
                 border-radius: 18px;
                 background-color: ${card_bg};
@@ -1194,6 +1261,7 @@ class JsonParserWindow(QMainWindow):
                 border-radius: 20px;
                 background-color: ${card_bg};
                 border: 1px solid ${card_border};
+                padding: 4px;
             }
             CardWidget#detailCard {
                 border-radius: 16px;
@@ -1220,14 +1288,15 @@ class JsonParserWindow(QMainWindow):
                 border: 1px solid ${combo_border};
                 padding: 4px 12px;
             }
-            BodyLabel#cardTitle { font-size: 16px; font-weight: 600; color: ${text_color}; }
+            BodyLabel#cardTitle { font-size: 15px; font-weight: 500; color: ${text_color}; }
             PrimaryPushButton {
                 border-radius: 18px;
-                padding: 6px 18px;
+                padding: 6px 20px;
                 background-color: ${primary_bg};
                 color: ${primary_fg};
                 border: none;
-                font-weight: 600;
+                font-weight: 500;
+                min-height: 40px;
             }
             PrimaryPushButton:hover {
                 background-color: ${primary_bg_hover};
@@ -1241,10 +1310,12 @@ class JsonParserWindow(QMainWindow):
             }
             PushButton {
                 border-radius: 18px;
-                padding: 6px 18px;
+                padding: 6px 20px;
                 background-color: ${secondary_bg};
                 color: ${secondary_fg};
                 border: 1px solid ${secondary_border};
+                font-weight: 500;
+                min-height: 40px;
             }
             PushButton:hover {
                 background-color: ${secondary_bg_hover};
@@ -1276,7 +1347,7 @@ class JsonParserWindow(QMainWindow):
             }
             QTabWidget::tab-bar {
                 alignment: left;
-                margin: 6px 10px 2px 10px;
+                margin: 6px 16px 2px 16px;
             }
             QTabBar {
                 qproperty-drawBase: 0;
@@ -1284,8 +1355,9 @@ class JsonParserWindow(QMainWindow):
             }
             QTabBar::tab {
                 border-radius: 14px;
-                padding: 8px 20px;
-                margin: 4px;
+                padding: 10px 22px;
+                margin: 4px 6px;
+                min-width: 160px;
                 color: ${tab_inactive_fg};
                 background-color: transparent;
             }
@@ -1301,9 +1373,28 @@ class JsonParserWindow(QMainWindow):
             QTabBar::tab:hover {
                 background-color: ${tab_hover_bg};
             }
+            QTabBar::close-button {
+                subcontrol-position: right;
+                width: 18px;
+                height: 18px;
+                border-radius: 9px;
+                background: transparent;
+                margin-left: 8px;
+            }
+            QTabBar::close-button:hover {
+                background: ${tab_close_hover};
+            }
+            QTabBar::close-button:pressed {
+                background: ${tab_close_press};
+            }
             QSplitter::handle {
+                background-color: transparent;
+                width: 16px;
+            }
+            QSplitter::handle:horizontal:hover,
+            QSplitter::handle:horizontal:pressed {
                 background-color: ${splitter_color};
-                width: 2px;
+                border-radius: 8px;
             }
             QStatusBar {
                 background-color: ${status_bg};
