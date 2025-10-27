@@ -49,7 +49,11 @@ from qfluentwidgets import (
 )
 
 
-def resolve_fluent_icon(primary: str, fallback: str = "FOLDER_ADD"):
+def resolve_fluent_icon(
+    primary: str,
+    fallback: str = "FOLDER_ADD",
+    color: Optional[QColor] = None,
+):
     """Return a QIcon for the requested Fluent icon, falling back when missing."""
 
     icon = getattr(FluentIcon, primary, None)
@@ -57,6 +61,12 @@ def resolve_fluent_icon(primary: str, fallback: str = "FOLDER_ADD"):
         icon = getattr(FluentIcon, fallback, None)
     if icon is None:
         icon = FluentIcon.ADD
+    if color is not None:
+        try:
+            return icon.icon(color=color)
+        except TypeError:
+            # Older qfluentwidgets versions may not accept the color keyword.
+            pass
     return icon.icon()
 
 
@@ -141,6 +151,11 @@ class CodeEditor(QPlainTextEdit):
             bottom = top + int(self.blockBoundingRect(block).height())
             block_number += 1
 
+        border_color = palette["border"]
+        painter.setPen(border_color)
+        right = event.rect().right()
+        painter.drawLine(right - 1, event.rect().top(), right - 1, event.rect().bottom())
+
     def _highlight_current_line(self) -> None:
         selection = QTextEdit.ExtraSelection()
         palette = self._palette_for_theme()
@@ -153,14 +168,16 @@ class CodeEditor(QPlainTextEdit):
     def _palette_for_theme(self) -> Dict[str, QColor]:
         if self._current_theme == Theme.DARK:
             return {
-                "background": QColor(37, 39, 47),
+                "background": QColor(35, 37, 47),
                 "foreground": QColor(140, 145, 165),
                 "highlight": QColor(58, 60, 70, 160),
+                "border": QColor(84, 94, 120, 180),
             }
         return {
-            "background": QColor(245, 246, 250),
+            "background": QColor(255, 255, 255),
             "foreground": QColor(120, 125, 140),
             "highlight": QColor(223, 229, 255),
+            "border": QColor(200, 210, 230, 150),
         }
 
     def set_theme(self, theme: Theme) -> None:
@@ -171,15 +188,15 @@ class CodeEditor(QPlainTextEdit):
 
     def _apply_theme_stylesheet(self) -> None:
         if self._current_theme == Theme.DARK:
-            background = "rgba(34, 37, 45, 240)"
+            background = "#23252f"
             foreground = "rgba(222, 226, 235, 220)"
-            border = "rgba(80, 90, 110, 160)"
+            border = "rgba(84, 94, 120, 180)"
             selection_bg = "rgba(86, 99, 135, 180)"
             selection_fg = "rgba(245, 248, 255, 230)"
         else:
-            background = "rgba(255, 255, 255, 0.96)"
+            background = "#ffffff"
             foreground = "rgba(43, 48, 60, 220)"
-            border = "rgba(120, 130, 150, 90)"
+            border = "rgba(200, 210, 230, 150)"
             selection_bg = "rgba(135, 169, 255, 120)"
             selection_fg = "rgba(20, 25, 38, 220)"
 
@@ -377,6 +394,7 @@ class JsonWorkspace(QWidget):
         self._load_button = PushButton("打开文件", self)
         self._load_button.setIcon(resolve_fluent_icon("FOLDER"))
         self._clear_button = PushButton("清空", self)
+        self._clear_button.setObjectName("dangerButton")
         self._clear_button.setIcon(FluentIcon.DELETE.icon())
 
         self._expand_button = PushButton("展开全部", self)
@@ -398,6 +416,7 @@ class JsonWorkspace(QWidget):
         button_bar.addStretch(1)
 
         input_card = CardWidget(self)
+        self._prepare_card(input_card)
         input_card.setObjectName("inputCard")
         input_layout = QVBoxLayout(input_card)
         input_layout.setContentsMargins(20, 20, 20, 20)
@@ -409,6 +428,7 @@ class JsonWorkspace(QWidget):
         input_layout.addLayout(button_bar)
 
         output_card = CardWidget(self)
+        self._prepare_card(output_card)
         output_card.setObjectName("outputCard")
         output_layout = QVBoxLayout(output_card)
         output_layout.setContentsMargins(20, 20, 20, 20)
@@ -416,7 +436,9 @@ class JsonWorkspace(QWidget):
 
         header_row = QHBoxLayout()
         header_row.setSpacing(8)
-        header_row.addWidget(BodyLabel("解析结果", output_card))
+        output_title = BodyLabel("解析结果", output_card)
+        output_title.setObjectName("cardTitle")
+        header_row.addWidget(output_title)
         header_row.addStretch(1)
         header_row.addWidget(self._filter_input, 2)
         header_row.addWidget(self._color_combo)
@@ -426,6 +448,7 @@ class JsonWorkspace(QWidget):
         output_layout.addWidget(self._tree, 1)
 
         detail_card = CardWidget(self)
+        self._prepare_card(detail_card)
         detail_card.setObjectName("detailCard")
         detail_layout = QVBoxLayout(detail_card)
         detail_layout.setContentsMargins(18, 18, 18, 18)
@@ -447,6 +470,17 @@ class JsonWorkspace(QWidget):
         output_layout.addWidget(detail_card)
 
         self._apply_card_shadows(input_card, output_card, detail_card)
+
+        self._button_icon_specs = [
+            (self._parse_button, "PLAY", None, "primary"),
+            (self._format_button, "CODE", None, "secondary"),
+            (self._load_button, "FOLDER", "FOLDER_ADD", "secondary"),
+            (self._clear_button, "DELETE", None, "danger"),
+            (self._copy_path_button, "LINK", None, "primary"),
+            (self._copy_value_button, "COPY", None, "secondary"),
+            (self._expand_button, "ZOOM_IN", None, "secondary"),
+            (self._collapse_button, "ZOOM_OUT", None, "secondary"),
+        ]
 
         splitter = QSplitter(Qt.Horizontal, self)
         splitter.addWidget(input_card)
@@ -534,15 +568,15 @@ class JsonWorkspace(QWidget):
                 " font-size: 12px;"
                 " border-radius: 10px;"
                 " padding: 10px;"
-                " background-color: rgba(34, 37, 46, 240);"
+                " background-color: #23252f;"
                 " color: rgba(232, 236, 245, 225);"
                 " selection-background-color: rgba(112, 134, 182, 200);"
                 " selection-color: rgba(245, 248, 255, 235);"
-                " border: 1px solid rgba(92, 102, 130, 170);"
+                " border: 1px solid rgba(92, 102, 130, 180);"
                 " }"
             )
-            tree_bg = "rgba(42, 45, 56, 240)"
-            tree_alt_bg = "rgba(49, 53, 65, 240)"
+            tree_bg = "#2a2d38"
+            tree_alt_bg = "#313541"
             tree_border = "rgba(70, 78, 102, 150)"
             tree_text = "rgba(226, 230, 240, 220)"
             header_bg = "rgba(58, 62, 78, 255)"
@@ -556,15 +590,15 @@ class JsonWorkspace(QWidget):
                 " font-size: 12px;"
                 " border-radius: 10px;"
                 " padding: 10px;"
-                " background-color: rgba(255, 255, 255, 0.95);"
+                " background-color: #ffffff;"
                 " color: rgba(30, 33, 44, 210);"
                 " selection-background-color: rgba(135, 169, 255, 120);"
                 " selection-color: rgba(24, 32, 45, 220);"
-                " border: 1px solid rgba(200, 210, 230, 140);"
+                " border: 1px solid rgba(200, 210, 230, 150);"
                 " }"
             )
-            tree_bg = "rgba(255, 255, 255, 0.98)"
-            tree_alt_bg = "rgba(245, 248, 255, 0.98)"
+            tree_bg = "#ffffff"
+            tree_alt_bg = "#f5f8ff"
             tree_border = "rgba(185, 195, 215, 110)"
             tree_text = "rgba(44, 48, 60, 220)"
             header_bg = "rgba(239, 241, 248, 230)"
@@ -599,6 +633,7 @@ class JsonWorkspace(QWidget):
             """
         )
         self._refresh_tree_colors()
+        self._apply_button_palette()
 
     # ------------------------------------------------------------------
     # Internal helpers
@@ -871,6 +906,33 @@ class JsonWorkspace(QWidget):
             shadow.setColor(QColor(20, 20, 20, 35))
             card.setGraphicsEffect(shadow)
 
+    def _prepare_card(self, card: CardWidget) -> None:
+        card.setAttribute(Qt.WA_StyledBackground, True)
+        card.setAttribute(Qt.WA_TranslucentBackground, True)
+        card.setAutoFillBackground(False)
+
+    def _apply_button_palette(self) -> None:
+        if not hasattr(self, "_button_icon_specs"):
+            return
+
+        if self._theme == Theme.DARK:
+            primary_icon = QColor(244, 247, 255)
+            secondary_icon = QColor(208, 214, 235)
+            danger_icon = QColor(255, 172, 172)
+        else:
+            primary_icon = QColor(255, 255, 255)
+            secondary_icon = QColor(76, 101, 148)
+            danger_icon = QColor(234, 85, 85)
+
+        for button, name, fallback, role in self._button_icon_specs:
+            if role == "primary":
+                icon_color = primary_icon
+            elif role == "danger":
+                icon_color = danger_icon
+            else:
+                icon_color = secondary_icon
+            button.setIcon(resolve_fluent_icon(name, fallback or name, icon_color))
+
 
 class JsonParserWindow(QMainWindow):
     """Main window hosting multiple JSON workspaces."""
@@ -919,9 +981,16 @@ class JsonParserWindow(QMainWindow):
         subtitle.setObjectName("heroSubtitle")
         hero_layout.addWidget(title)
         hero_layout.addWidget(subtitle)
+        hero_layout.addStretch(1)
+        signature = CaptionLabel("By:ChatGPT Code & BigTiger", self._hero_card)
+        signature.setObjectName("heroSignature")
+        hero_layout.addWidget(signature, 0, Qt.AlignRight | Qt.AlignBottom)
 
         controls_card = self._controls_card
         controls_card.setParent(self)
+        controls_card.setAttribute(Qt.WA_StyledBackground, True)
+        controls_card.setAttribute(Qt.WA_TranslucentBackground, True)
+        controls_card.setAutoFillBackground(False)
         controls_card.setObjectName("controlsCard")
         controls_layout = QHBoxLayout(controls_card)
         controls_layout.setContentsMargins(20, 14, 20, 14)
@@ -1015,38 +1084,88 @@ class JsonParserWindow(QMainWindow):
     def _apply_global_styles(self, theme: Theme) -> None:
         if theme == Theme.DARK:
             central_bg = "#1f212a"
-            card_bg = "rgba(42, 45, 56, 235)"
-            detail_bg = "rgba(33, 35, 44, 230)"
+            card_bg = "#2a2d38"
+            detail_bg = "#21232c"
             text_color = "rgba(230, 235, 245, 220)"
-            line_edit_bg = "rgba(38, 41, 52, 235)"
+            line_edit_bg = "#252833"
             line_edit_fg = "rgba(225, 230, 245, 220)"
-            line_edit_border = "rgba(78, 86, 110, 160)"
-            card_border = "rgba(70, 78, 102, 170)"
-            detail_border = "rgba(92, 102, 130, 170)"
-            combo_bg = "rgba(46, 50, 62, 235)"
+            line_edit_border = "rgba(84, 94, 120, 180)"
+            card_border = "rgba(70, 78, 102, 180)"
+            detail_border = "rgba(92, 102, 130, 180)"
+            combo_bg = "#2e323e"
             combo_fg = "rgba(225, 230, 245, 220)"
-            combo_border = "rgba(84, 94, 120, 170)"
+            combo_border = "rgba(84, 94, 120, 180)"
             splitter_color = "rgba(110, 118, 140, 140)"
-            status_bg = "rgba(33, 35, 44, 230)"
+            status_bg = "#21232c"
             status_fg = "rgba(220, 225, 236, 220)"
             status_border = "rgba(70, 78, 102, 170)"
+            primary_bg = "#4b6dff"
+            primary_bg_hover = "#5d7cff"
+            primary_bg_press = "#3f5bd6"
+            primary_fg = "#f4f7ff"
+            secondary_bg = "#343744"
+            secondary_bg_hover = "#3f4252"
+            secondary_bg_press = "#2e313d"
+            secondary_fg = "rgba(220, 226, 240, 220)"
+            secondary_border = "rgba(96, 106, 136, 180)"
+            secondary_border_hover = "rgba(124, 134, 168, 200)"
+            danger_bg = "#c24b4b"
+            danger_hover = "#d85a5a"
+            danger_press = "#a83f3f"
+            danger_border = "#de6f6f"
+            danger_fg = "#fff5f5"
+            tab_active_bg = "#3b3f52"
+            tab_active_border = "rgba(96, 106, 136, 180)"
+            tab_active_fg = "#f1f3fa"
+            tab_inactive_fg = "rgba(160, 170, 200, 200)"
+            tab_hover_bg = "#2f3242"
+            scrollbar_bg = "#2a2d38"
+            scrollbar_handle = "#6772a2"
+            scrollbar_handle_hover = "#7a85b8"
+            scrollbar_handle_pressed = "#596394"
+            hero_signature = "rgba(255, 255, 255, 215)"
         else:
             central_bg = "#f3f5fb"
-            card_bg = "rgba(255, 255, 255, 235)"
-            detail_bg = "rgba(248, 249, 254, 230)"
+            card_bg = "#ffffff"
+            detail_bg = "#f8f9fe"
             text_color = "rgba(40, 45, 60, 220)"
-            line_edit_bg = "rgba(255, 255, 255, 0.98)"
+            line_edit_bg = "#ffffff"
             line_edit_fg = "rgba(40, 45, 60, 220)"
-            line_edit_border = "rgba(160, 170, 190, 110)"
+            line_edit_border = "rgba(160, 170, 190, 130)"
             card_border = "rgba(200, 210, 230, 150)"
             detail_border = "rgba(188, 198, 220, 150)"
-            combo_bg = "rgba(255, 255, 255, 0.96)"
+            combo_bg = "#ffffff"
             combo_fg = "rgba(40, 45, 60, 220)"
-            combo_border = "rgba(170, 180, 200, 120)"
-            splitter_color = "rgba(120, 132, 160, 140)"
-            status_bg = "rgba(255, 255, 255, 0.94)"
+            combo_border = "rgba(170, 180, 200, 140)"
+            splitter_color = "rgba(120, 132, 160, 120)"
+            status_bg = "#ffffff"
             status_fg = "rgba(40, 45, 60, 220)"
             status_border = "rgba(200, 210, 230, 150)"
+            primary_bg = "#3f6fff"
+            primary_bg_hover = "#5c85ff"
+            primary_bg_press = "#2f56d6"
+            primary_fg = "#ffffff"
+            secondary_bg = "#f1f4ff"
+            secondary_bg_hover = "#e8edff"
+            secondary_bg_press = "#dde4ff"
+            secondary_fg = "rgba(60, 68, 92, 220)"
+            secondary_border = "rgba(170, 180, 205, 150)"
+            secondary_border_hover = "rgba(150, 162, 195, 170)"
+            danger_bg = "#ed5c5c"
+            danger_hover = "#f26e6e"
+            danger_press = "#d84f4f"
+            danger_border = "#f49797"
+            danger_fg = "#fff9f9"
+            tab_active_bg = "#ffffff"
+            tab_active_border = "rgba(200, 210, 230, 150)"
+            tab_active_fg = "rgba(40, 45, 60, 220)"
+            tab_inactive_fg = "rgba(120, 132, 160, 200)"
+            tab_hover_bg = "#e8edff"
+            scrollbar_bg = "#e4e8f5"
+            scrollbar_handle = "#9faad4"
+            scrollbar_handle_hover = "#8a96c7"
+            scrollbar_handle_pressed = "#6f7cb5"
+            hero_signature = "rgba(255, 255, 255, 220)"
 
         stylesheet = f"""
             #centralWidget {{
@@ -1059,6 +1178,7 @@ class JsonParserWindow(QMainWindow):
             }}
             BodyLabel#heroTitle {{ font-size: 28px; font-weight: 600; }}
             CaptionLabel#heroSubtitle {{ font-size: 14px; color: rgba(255, 255, 255, 210); }}
+            CaptionLabel#heroSignature {{ font-size: 13px; color: {hero_signature}; margin-top: 4px; }}
             CardWidget#controlsCard {{
                 border-radius: 18px;
                 background-color: {card_bg};
@@ -1095,26 +1215,85 @@ class JsonParserWindow(QMainWindow):
                 padding: 4px 12px;
             }}
             BodyLabel#cardTitle {{ font-size: 16px; font-weight: 600; color: {text_color}; }}
-            PrimaryPushButton, PushButton {{
+            PrimaryPushButton {{
                 border-radius: 18px;
-                padding: 6px 14px;
+                padding: 6px 18px;
+                background-color: {primary_bg};
+                color: {primary_fg};
+                border: none;
+                font-weight: 600;
+            }}
+            PrimaryPushButton:hover {{
+                background-color: {primary_bg_hover};
+            }}
+            PrimaryPushButton:pressed {{
+                background-color: {primary_bg_press};
+            }}
+            PrimaryPushButton:disabled {{
+                background-color: rgba(120, 130, 160, 100);
+                color: rgba(255, 255, 255, 110);
+            }}
+            PushButton {{
+                border-radius: 18px;
+                padding: 6px 18px;
+                background-color: {secondary_bg};
+                color: {secondary_fg};
+                border: 1px solid {secondary_border};
+            }}
+            PushButton:hover {{
+                background-color: {secondary_bg_hover};
+                border: 1px solid {secondary_border_hover};
+            }}
+            PushButton:pressed {{
+                background-color: {secondary_bg_press};
+            }}
+            PushButton:disabled {{
+                background-color: rgba(120, 130, 160, 70);
+                color: rgba(210, 215, 230, 120);
+                border: 1px solid rgba(150, 160, 185, 80);
+            }}
+            PushButton#dangerButton {{
+                background-color: {danger_bg};
+                color: {danger_fg};
+                border: 1px solid {danger_border};
+            }}
+            PushButton#dangerButton:hover {{
+                background-color: {danger_hover};
+                border-color: {danger_border};
+            }}
+            PushButton#dangerButton:pressed {{
+                background-color: {danger_press};
             }}
             QTabWidget::pane {{
                 border: none;
                 background: transparent;
             }}
+            QTabWidget::tab-bar {
+                alignment: left;
+                margin: 6px 10px 2px 10px;
+            }
+            QTabBar {
+                qproperty-drawBase: 0;
+                background: transparent;
+            }
             QTabBar::tab {{
                 border-radius: 14px;
-                padding: 6px 18px;
+                padding: 8px 20px;
                 margin: 4px;
-                color: {text_color};
+                color: {tab_inactive_fg};
+                background-color: transparent;
             }}
             QTabBar::tab:selected {{
-                background-color: {card_bg};
-                border: 1px solid {card_border};
+                background-color: {tab_active_bg};
+                color: {tab_active_fg};
+                border: 1px solid {tab_active_border};
+                font-weight: 600;
             }}
             QTabBar::tab:!selected {{
                 background-color: transparent;
+            }}
+            QTabBar::tab:hover {{
+                background-color: {tab_hover_bg};
             }}
             QSplitter::handle {{
                 background-color: {splitter_color};
@@ -1126,9 +1305,51 @@ class JsonParserWindow(QMainWindow):
                 border-top: 1px solid {status_border};
                 padding: 4px 12px;
             }}
+            QScrollBar:vertical {{
+                background: {scrollbar_bg};
+                width: 12px;
+                margin: 4px 2px 4px 2px;
+                border-radius: 6px;
+            }}
+            QScrollBar::handle:vertical {{
+                background: {scrollbar_handle};
+                border-radius: 6px;
+                min-height: 30px;
+            }}
+            QScrollBar::handle:vertical:hover {{
+                background: {scrollbar_handle_hover};
+            }}
+            QScrollBar::handle:vertical:pressed {{
+                background: {scrollbar_handle_pressed};
+            }}
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
+                height: 0px;
+            }}
+            QScrollBar:horizontal {{
+                background: {scrollbar_bg};
+                height: 12px;
+                margin: 2px 4px 2px 4px;
+                border-radius: 6px;
+            }}
+            QScrollBar::handle:horizontal {{
+                background: {scrollbar_handle};
+                border-radius: 6px;
+                min-width: 30px;
+            }}
+            QScrollBar::handle:horizontal:hover {{
+                background: {scrollbar_handle_hover};
+            }}
+            QScrollBar::handle:horizontal:pressed {{
+                background: {scrollbar_handle_pressed};
+            }}
+            QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{
+                width: 0px;
+            }}
         """
         self.setStyleSheet(stylesheet)
         self._hero_card.set_theme(theme)
+        new_tab_icon_color = QColor(255, 255, 255) if theme == Theme.LIGHT else QColor(244, 247, 255)
+        self._new_tab_button.setIcon(resolve_fluent_icon("ADD", color=new_tab_icon_color))
 
 
 def main() -> None:
