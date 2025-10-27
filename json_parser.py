@@ -915,20 +915,20 @@ class JsonParserWindow(QMainWindow):
         controls_layout.addWidget(self._new_tab_button)
         self._new_tab_button.clicked.connect(self._create_new_tab)
 
-    def show_status_message(self, message: str, timeout: int = 3500) -> None:
-        if hasattr(self, "_status_bar") and self._status_bar is not None:
-            self._status_bar.showMessage(message, timeout)
-
         central = QWidget(self)
         central.setObjectName("centralWidget")
         layout = QVBoxLayout(central)
         layout.setContentsMargins(28, 28, 28, 28)
         layout.setSpacing(16)
         layout.addWidget(self._hero_card)
-        layout.addWidget(controls_card)
+        layout.addWidget(self._controls_card)
         layout.addWidget(self._tab_widget, 1)
         self.setCentralWidget(central)
-        self._apply_card_shadows(self._hero_card, controls_card)
+        self._apply_card_shadows(self._hero_card, self._controls_card)
+
+    def show_status_message(self, message: str, timeout: int = 3500) -> None:
+        if hasattr(self, "_status_bar") and self._status_bar is not None:
+            self._status_bar.showMessage(message, timeout)
 
     # ------------------------------------------------------------------
     # Workspace helpers
