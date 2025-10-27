@@ -41,8 +41,6 @@ from qfluentwidgets import (
     CardWidget,
     ComboBox,
     FluentIcon,
-    InfoBar,
-    InfoBarPosition,
     LineEdit,
     PrimaryPushButton,
     PushButton,
@@ -746,13 +744,7 @@ class JsonWorkspace(QWidget):
             return
         clipboard = QGuiApplication.clipboard()
         clipboard.setText(text)
-        InfoBar.success(
-            title="路径已复制",
-            content=text,
-            parent=self.window(),
-            position=InfoBarPosition.TOP,
-            duration=1200,
-        )
+        self._show_status("JSON 路径已复制到剪贴板。", 1600)
 
     def _copy_selected_value(self) -> None:
         items = self._tree.selectedItems()
@@ -765,13 +757,7 @@ class JsonWorkspace(QWidget):
             text = self._format_scalar(value)
         clipboard = QGuiApplication.clipboard()
         clipboard.setText(text)
-        InfoBar.success(
-            title="值已复制",
-            content="选中节点的值已复制到剪贴板。",
-            parent=self.window(),
-            position=InfoBarPosition.TOP,
-            duration=1200,
-        )
+        self._show_status("节点值已复制到剪贴板。", 1600)
 
     def _apply_filter(self, keyword: str) -> None:
         keyword = keyword.strip()
@@ -865,14 +851,8 @@ class JsonWorkspace(QWidget):
         return "解析成功：根节点为原始值。"
 
     def _show_error(self, message: str) -> None:
-        InfoBar.error(
-            title="发生错误",
-            content=message,
-            parent=self.window(),
-            position=InfoBarPosition.TOP,
-            duration=2500,
-        )
         QMessageBox.critical(self, "错误", message)
+        self._show_status("发生错误：" + message, 3500)
 
     def _show_status(self, message: str, timeout: int = 3500) -> None:
         window = self.window()
