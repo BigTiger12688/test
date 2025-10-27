@@ -12,14 +12,13 @@ from pathlib import Path
 from typing import Any, Optional
 
 from PyQt5.QtCore import QPoint, Qt
-from PyQt5.QtGui import QColor, QGuiApplication
+from PyQt5.QtGui import QGuiApplication
 from PyQt5.QtWidgets import (
     QAction,
     QApplication,
     QFileDialog,
     QHBoxLayout,
     QHeaderView,
-    QGraphicsDropShadowEffect,
     QMainWindow,
     QMenu,
     QMessageBox,
@@ -35,7 +34,6 @@ from qfluentwidgets import (
     BodyLabel,
     CaptionLabel,
     CardWidget,
-    FluentIcon,
     InfoBar,
     InfoBarPosition,
     LineEdit,
@@ -51,8 +49,8 @@ class JsonParserWindow(QMainWindow):
 
     def __init__(self) -> None:
         super().__init__()
-        self.setWindowTitle("JSON 数据洞察工具")
-        self.resize(1180, 760)
+        self.setWindowTitle("JSON 数据解析工具")
+        self.resize(1100, 720)
 
         # Use the fluent design language.
         setTheme(Theme.AUTO)
@@ -73,14 +71,11 @@ class JsonParserWindow(QMainWindow):
         self._tree.header().setSectionResizeMode(0, QHeaderView.ResizeToContents)
         self._tree.header().setSectionResizeMode(1, QHeaderView.Stretch)
         self._tree.setExpandsOnDoubleClick(True)
-        self._tree.setUniformRowHeights(True)
-        self._tree.setAnimated(True)
         self._tree.setContextMenuPolicy(Qt.CustomContextMenu)
         self._tree.customContextMenuRequested.connect(self._show_tree_context_menu)
         self._tree.itemSelectionChanged.connect(self._on_tree_selection_change)
 
         self._status_label = CaptionLabel("准备就绪。", self)
-        self._status_label.setObjectName("statusLabel")
 
         # Controls for displaying and copying JSON paths
         self._path_display = LineEdit(self)
@@ -93,29 +88,6 @@ class JsonParserWindow(QMainWindow):
         self._copy_path_button.clicked.connect(self._copy_selected_path)
         self._copy_path_button.setEnabled(False)
 
-        self._copy_value_button = PushButton("复制值", self)
-        self._copy_value_button.setToolTip("复制选中节点的原始值")
-        self._copy_value_button.clicked.connect(self._copy_selected_value)
-        self._copy_value_button.setEnabled(False)
-
-        self._value_preview = QPlainTextEdit(self)
-        self._value_preview.setObjectName("valuePreview")
-        self._value_preview.setReadOnly(True)
-        self._value_preview.setFocusPolicy(Qt.NoFocus)
-        self._value_preview.setFixedHeight(160)
-        self._value_preview.setPlainText("在左侧树形结构中选择节点以查看其值和路径…")
-        self._value_preview.setStyleSheet(
-            "QPlainTextEdit#valuePreview {"
-            " border-radius: 10px;"
-            " border: 1px solid rgba(120, 120, 120, 40);"
-            " background-color: rgba(255, 255, 255, 210);"
-            " font-family: 'Cascadia Code', 'JetBrains Mono', monospace;"
-            " font-size: 12px;"
-            " padding: 10px;"
-            " color: rgba(30, 30, 30, 200);"
-            " }"
-        )
-
         path_bar = QHBoxLayout()
         path_bar.setSpacing(12)
         path_bar.addWidget(self._path_display, 1)
@@ -126,7 +98,6 @@ class JsonParserWindow(QMainWindow):
         self._filter_input.setPlaceholderText("输入关键字过滤解析结果…")
         self._filter_input.setClearButtonEnabled(True)
         self._filter_input.textChanged.connect(self._apply_filter)
-        self._filter_input.setObjectName("filterBox")
 
         parse_button = PrimaryPushButton("解析", self)
         parse_button.clicked.connect(self._parse_json)
@@ -146,21 +117,8 @@ class JsonParserWindow(QMainWindow):
         collapse_button = PushButton("折叠全部", self)
         collapse_button.clicked.connect(self._tree.collapseAll)
 
-        for button, icon in (
-            (parse_button, FluentIcon.PLAY),
-            (format_button, FluentIcon.CODE),
-            (load_button, FluentIcon.FOLDER_OPEN),
-            (clear_button, FluentIcon.DELETE),
-            (expand_button, FluentIcon.ZOOM_IN),
-            (collapse_button, FluentIcon.ZOOM_OUT),
-            (self._copy_path_button, FluentIcon.LINK),
-            (self._copy_value_button, FluentIcon.COPY),
-        ):
-            button.setIcon(icon.icon())
-            button.setMinimumHeight(36)
-
         button_bar = QHBoxLayout()
-        button_bar.setSpacing(14)
+        button_bar.setSpacing(10)
         button_bar.addWidget(parse_button)
         button_bar.addWidget(format_button)
         button_bar.addWidget(load_button)
@@ -170,53 +128,25 @@ class JsonParserWindow(QMainWindow):
         button_bar.addWidget(collapse_button)
 
         input_card = CardWidget(self)
-        input_card.setObjectName("inputCard")
         input_layout = QVBoxLayout(input_card)
         input_layout.setContentsMargins(20, 20, 20, 20)
         input_layout.setSpacing(16)
-        input_title = BodyLabel("输入 JSON 数据")
-        input_title.setObjectName("cardTitle")
-        input_layout.addWidget(input_title)
+        input_layout.addWidget(BodyLabel("输入 JSON 数据"))
         input_layout.addWidget(self._json_input, 1)
         input_layout.addLayout(button_bar)
 
         output_card = CardWidget(self)
-        output_card.setObjectName("outputCard")
         output_layout = QVBoxLayout(output_card)
         output_layout.setContentsMargins(20, 20, 20, 20)
         output_layout.setSpacing(12)
         header_row = QHBoxLayout()
         header_row.setSpacing(8)
-        result_title = BodyLabel("解析结果")
-        result_title.setObjectName("cardTitle")
-        header_row.addWidget(result_title)
+        header_row.addWidget(BodyLabel("解析结果"))
         header_row.addStretch(1)
         header_row.addWidget(self._filter_input)
         output_layout.addLayout(header_row)
         output_layout.addWidget(self._tree, 1)
-
-        detail_card = CardWidget(self)
-        detail_card.setObjectName("detailCard")
-        detail_layout = QVBoxLayout(detail_card)
-        detail_layout.setContentsMargins(18, 18, 18, 18)
-        detail_layout.setSpacing(12)
-
-        path_label_row = QHBoxLayout()
-        path_label_row.addWidget(CaptionLabel("JSON 路径"))
-        path_label_row.addStretch(1)
-        detail_layout.addLayout(path_label_row)
-
-        detail_layout.addLayout(path_bar)
-
-        value_label_row = QHBoxLayout()
-        value_label = CaptionLabel("节点值")
-        value_label_row.addWidget(value_label)
-        value_label_row.addStretch(1)
-        value_label_row.addWidget(self._copy_value_button)
-        detail_layout.addLayout(value_label_row)
-        detail_layout.addWidget(self._value_preview)
-
-        output_layout.addWidget(detail_card)
+        output_layout.addLayout(path_bar)
         output_layout.addWidget(self._status_label)
 
         splitter = QSplitter(Qt.Horizontal, self)
@@ -224,34 +154,26 @@ class JsonParserWindow(QMainWindow):
         splitter.addWidget(output_card)
         splitter.setStretchFactor(0, 3)
         splitter.setStretchFactor(1, 4)
-        splitter.setChildrenCollapsible(False)
 
-        hero_card = CardWidget(self)
-        hero_card.setObjectName("heroCard")
-        hero_layout = QVBoxLayout(hero_card)
-        hero_layout.setContentsMargins(24, 22, 24, 22)
-        hero_layout.setSpacing(10)
-
-        hero_title = BodyLabel("JSON 数据洞察工具")
-        hero_title.setObjectName("heroTitle")
-        hero_subtitle = CaptionLabel(
-            "Fluent Design 风格的专业解析器，支持格式化、搜索、复制路径与值。"
+        intro_card = CardWidget(self)
+        intro_layout = QVBoxLayout(intro_card)
+        intro_layout.setContentsMargins(20, 16, 20, 20)
+        intro_layout.setSpacing(6)
+        intro_layout.addWidget(CaptionLabel("专业级 JSON 工具"))
+        intro_layout.addWidget(
+            BodyLabel(
+                "打开文件或粘贴 JSON 文本，快速格式化、检索并复制任意节点路径。"
+            )
         )
-        hero_subtitle.setObjectName("heroSubtitle")
-        hero_layout.addWidget(hero_title)
-        hero_layout.addWidget(hero_subtitle)
 
         central = QWidget(self)
-        central.setObjectName("centralWidget")
         layout = QVBoxLayout(central)
         layout.setContentsMargins(28, 28, 28, 28)
         layout.setSpacing(16)
-        layout.addWidget(hero_card)
+        layout.addWidget(intro_card)
         layout.addWidget(splitter, 1)
 
         self.setCentralWidget(central)
-        self._apply_card_shadows(hero_card, input_card, output_card, detail_card)
-        self._apply_global_styles()
 
     # ------------------------------------------------------------------
     # UI helpers
@@ -290,6 +212,7 @@ class JsonParserWindow(QMainWindow):
             return
 
         self._populate_tree(data)
+        self._status_label.setText("解析成功，支持搜索与复制路径。")
         InfoBar.success(
             title="解析完成",
             content="JSON 数据解析成功。",
@@ -306,8 +229,6 @@ class JsonParserWindow(QMainWindow):
         self._path_display.clear()
         self._filter_input.clear()
         self._copy_path_button.setEnabled(False)
-        self._copy_value_button.setEnabled(False)
-        self._value_preview.setPlainText("在左侧树形结构中选择节点以查看其值和路径…")
         self._status_label.setText("已清空所有内容。")
 
     def _format_json(self) -> None:
@@ -344,8 +265,6 @@ class JsonParserWindow(QMainWindow):
         self._tree.clear()
         self._path_display.clear()
         self._copy_path_button.setEnabled(False)
-        self._copy_value_button.setEnabled(False)
-        self._value_preview.setPlainText("在左侧树形结构中选择节点以查看其值和路径…")
 
         root_item = self._create_tree_item("$", data, "$")
         if root_item is not None:
@@ -357,7 +276,6 @@ class JsonParserWindow(QMainWindow):
             self._apply_filter(self._filter_input.text())
         else:
             self._reset_filter()
-        self._status_label.setText(self._summarize_data(data))
 
     def _create_tree_item(
         self, key: str, value: Any, path: str
@@ -367,7 +285,6 @@ class JsonParserWindow(QMainWindow):
         if isinstance(value, dict):
             item = QTreeWidgetItem([str(key), self._describe_value(value)])
             item.setData(0, Qt.UserRole, path)
-            item.setData(0, Qt.UserRole + 1, value)
             for child_key, child_value in value.items():
                 child_path = f"{path}.{child_key}" if path != "$" else f"$.{child_key}"
                 child_item = self._create_tree_item(child_key, child_value, child_path)
@@ -376,7 +293,6 @@ class JsonParserWindow(QMainWindow):
         elif isinstance(value, list):
             item = QTreeWidgetItem([str(key), self._describe_value(value)])
             item.setData(0, Qt.UserRole, path)
-            item.setData(0, Qt.UserRole + 1, value)
             for index, child_value in enumerate(value):
                 child_path = f"{path}[{index}]"
                 child_item = self._create_tree_item(f"[{index}]", child_value, child_path)
@@ -386,7 +302,6 @@ class JsonParserWindow(QMainWindow):
             text = self._format_scalar(value)
             item = QTreeWidgetItem([str(key), text])
             item.setData(0, Qt.UserRole, path)
-            item.setData(0, Qt.UserRole + 1, value)
         return item
 
     def _describe_value(self, value: Any) -> str:
@@ -434,8 +349,6 @@ class JsonParserWindow(QMainWindow):
         if not items:
             self._path_display.clear()
             self._copy_path_button.setEnabled(False)
-            self._copy_value_button.setEnabled(False)
-            self._value_preview.setPlainText("在左侧树形结构中选择节点以查看其值和路径…")
             return
 
         item = items[0]
@@ -443,14 +356,6 @@ class JsonParserWindow(QMainWindow):
         if path:
             self._path_display.setText(path)
             self._copy_path_button.setEnabled(True)
-        value = item.data(0, Qt.UserRole + 1)
-        formatted = (
-            json.dumps(value, indent=4, ensure_ascii=False)
-            if isinstance(value, (dict, list))
-            else self._format_scalar(value)
-        )
-        self._value_preview.setPlainText(formatted)
-        self._copy_value_button.setEnabled(True)
 
     def _copy_selected_path(self) -> None:
         """Copy the JSON path of the selected node to clipboard."""
@@ -479,13 +384,11 @@ class JsonParserWindow(QMainWindow):
         if not items:
             return
 
-        value = items[0].data(0, Qt.UserRole + 1)
-        if isinstance(value, (dict, list)):
-            text = json.dumps(value, ensure_ascii=False)
-        else:
-            text = self._format_scalar(value)
+        value = items[0].text(1)
+        if not value:
+            return
 
-        QGuiApplication.clipboard().setText(text)
+        QGuiApplication.clipboard().setText(value)
         InfoBar.success(
             title="已复制值",
             content="节点值已复制到剪贴板。",
@@ -506,7 +409,6 @@ class JsonParserWindow(QMainWindow):
         for index in range(self._tree.topLevelItemCount()):
             self._filter_item(self._tree.topLevelItem(index), keyword)
         self._tree.setUpdatesEnabled(True)
-        self._status_label.setText(f"共找到 {self._count_visible_items()} 个匹配节点。")
 
     def _filter_item(self, item: QTreeWidgetItem, keyword: str) -> bool:
         """Recursively hide nodes that do not match the keyword."""
@@ -529,27 +431,12 @@ class JsonParserWindow(QMainWindow):
         for index in range(self._tree.topLevelItemCount()):
             self._show_item_recursive(self._tree.topLevelItem(index))
         self._tree.setUpdatesEnabled(True)
-        self._status_label.setText("已显示全部节点。")
 
     def _show_item_recursive(self, item: QTreeWidgetItem) -> None:
         item.setHidden(False)
         item.setExpanded(item.childCount() > 0)
         for idx in range(item.childCount()):
             self._show_item_recursive(item.child(idx))
-
-    def _count_visible_items(self) -> int:
-        def _count(item: QTreeWidgetItem) -> int:
-            if item.isHidden():
-                return 0
-            total = 1
-            for idx in range(item.childCount()):
-                total += _count(item.child(idx))
-            return total
-
-        total_visible = 0
-        for index in range(self._tree.topLevelItemCount()):
-            total_visible += _count(self._tree.topLevelItem(index))
-        return total_visible
 
     def _show_error(self, message: str) -> None:
         """Display an error message using InfoBar and a fallback message box."""
@@ -564,66 +451,6 @@ class JsonParserWindow(QMainWindow):
 
         # Provide a fallback dialog in case InfoBar is hidden or dismissed.
         QMessageBox.critical(self, "错误", message)
-
-    # ------------------------------------------------------------------
-    # Styling helpers
-    # ------------------------------------------------------------------
-    def _apply_card_shadows(self, *cards: CardWidget) -> None:
-        for card in cards:
-            shadow = QGraphicsDropShadowEffect(card)
-            shadow.setBlurRadius(28)
-            shadow.setXOffset(0)
-            shadow.setYOffset(12)
-            shadow.setColor(QColor(20, 20, 20, 35))
-            card.setGraphicsEffect(shadow)
-
-    def _apply_global_styles(self) -> None:
-        self.setStyleSheet(
-            "#centralWidget {"
-            " background: #f3f5fb;"
-            " }"
-            "CardWidget#heroCard {"
-            " background: qlineargradient(x1:0, y1:0, x2:1, y2:1,"
-            " stop:0 #4f9dff, stop:1 #6d5bff);"
-            " border-radius: 22px;"
-            " color: white;"
-            " }"
-            "BodyLabel#heroTitle { font-size: 26px; font-weight: 600; }"
-            "CaptionLabel#heroSubtitle { font-size: 14px; color: rgba(255, 255, 255, 200); }"
-            "CardWidget#inputCard, CardWidget#outputCard {"
-            " border-radius: 20px;"
-            " background-color: rgba(255, 255, 255, 235);"
-            " }"
-            "CardWidget#detailCard {"
-            " border-radius: 16px;"
-            " background-color: rgba(248, 249, 254, 230);"
-            " }"
-            "LineEdit {"
-            " border-radius: 10px;"
-            " padding: 6px 12px;"
-            " font-size: 13px;"
-            " }"
-            "LineEdit#filterBox { min-width: 240px; }"
-            "BodyLabel#cardTitle { font-size: 16px; font-weight: 600; }"
-            "QTreeWidget {"
-            " background: rgba(255, 255, 255, 240);"
-            " border-radius: 12px;"
-            " padding: 4px;"
-            " }"
-            "QTreeWidget::item { height: 28px; }"
-            "PrimaryPushButton, PushButton {"
-            " border-radius: 18px;"
-            " padding: 6px 14px;"
-            " }"
-            "CaptionLabel#statusLabel { color: rgba(70, 80, 110, 180); }"
-        )
-
-    def _summarize_data(self, data: Any) -> str:
-        if isinstance(data, dict):
-            return f"解析成功：根对象包含 {len(data)} 个键。"
-        if isinstance(data, list):
-            return f"解析成功：根数组包含 {len(data)} 个元素。"
-        return "解析成功：根节点为原始值。"
 
 
 def main() -> None:
