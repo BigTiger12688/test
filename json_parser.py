@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 from typing import Any, Dict, Optional
 
-from PyQt5.QtCore import QPoint, QRect, QSize, Qt, pyqtSignal
+from PyQt5.QtCore import QPoint, QRect, QRectF, QSize, Qt, pyqtSignal
 from PyQt5.QtGui import (
     QColor,
     QGuiApplication,
@@ -221,7 +221,7 @@ class GradientHeroCard(CardWidget):
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
         painter.setPen(Qt.NoPen)
-        rect = self.rect().adjusted(1, 1, -1, -1)
+        rect = QRectF(self.rect().adjusted(1, 1, -1, -1))
         path = QPainterPath()
         radius = 22.0
         path.addRoundedRect(rect, radius, radius)
