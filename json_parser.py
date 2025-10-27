@@ -17,6 +17,7 @@ from PyQt5.QtWidgets import (
     QMenu,
     QMessageBox,
     QPlainTextEdit,
+    QTextEdit,
     QSplitter,
     QTabWidget,
     QTreeWidget,
@@ -130,7 +131,7 @@ class CodeEditor(QPlainTextEdit):
             block_number += 1
 
     def _highlight_current_line(self) -> None:
-        selection = QPlainTextEdit.ExtraSelection()
+        selection = QTextEdit.ExtraSelection()
         palette = self._palette_for_theme()
         selection.format.setBackground(palette["highlight"])
         selection.format.setProperty(QTextFormat.FullWidthSelection, True)
