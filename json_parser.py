@@ -1268,10 +1268,10 @@ class JsonParserWindow(QMainWindow):
                 border: none;
                 background: transparent;
             }}
-            QTabWidget::tab-bar {
+            QTabWidget::tab-bar {{
                 alignment: left;
                 margin: 6px 10px 2px 10px;
-            }
+            }}
             QTabBar {
                 qproperty-drawBase: 0;
                 background: transparent;
