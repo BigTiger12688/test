@@ -980,8 +980,9 @@ class JsonParserWindow(QMainWindow):
             duration=timeout,
         )
         self._active_status_bar = bar
-        if hasattr(bar, "closed"):
-            bar.closed.connect(self._clear_status_notification)
+        close_signal = getattr(bar, "closed", None)
+        if close_signal is not None and hasattr(close_signal, "connect"):
+            close_signal.connect(self._clear_status_notification)
         else:
             bar.destroyed.connect(lambda *_: self._clear_status_notification(bar))
 
