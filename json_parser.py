@@ -27,10 +27,12 @@ from PyQt5.QtWidgets import (
     QMenu,
     QMessageBox,
     QPlainTextEdit,
+    QTabBar,
     QTextEdit,
     QSplitter,
     QStatusBar,
     QTabWidget,
+    QToolButton,
     QTreeWidget,
     QTreeWidgetItem,
     QVBoxLayout,
@@ -290,6 +292,85 @@ class GradientHeroCard(CardWidget):
         painter.fillPath(path, gradient)
 
 
+class WorkspaceTabBar(QTabBar):
+    """Custom tab bar providing themed close buttons and spacing."""
+
+    tabCloseRequested = pyqtSignal(int)
+
+    def __init__(self, parent: Optional[QWidget] = None) -> None:
+        super().__init__(parent)
+        self._theme = Theme.LIGHT
+        self.setDocumentMode(True)
+        self.setExpanding(False)
+        self.setMovable(True)
+        self.setElideMode(Qt.ElideRight)
+        self.setUsesScrollButtons(True)
+
+    def set_theme(self, theme: Theme) -> None:
+        if theme == self._theme:
+            return
+        self._theme = theme
+        self._refresh_close_buttons()
+
+    def tabInserted(self, index: int) -> None:  # type: ignore[override]
+        super().tabInserted(index)
+        self._install_close_button(index)
+
+    # ------------------------------------------------------------------
+    # Internal helpers
+    # ------------------------------------------------------------------
+    def _emit_close_for_button(self, button: QToolButton) -> None:
+        position = button.mapTo(self, button.rect().center())
+        index = self.tabAt(position)
+        if index != -1:
+            self.tabCloseRequested.emit(index)
+
+    def _install_close_button(self, index: int) -> None:
+        button = QToolButton(self)
+        button.setCursor(Qt.PointingHandCursor)
+        button.setAutoRaise(True)
+        button.setText("✕")
+        button.setObjectName("workspaceTabCloseButton")
+        button.clicked.connect(lambda _=False, b=button: self._emit_close_for_button(b))
+        self._style_close_button(button)
+        self.setTabButton(index, QTabBar.RightSide, button)
+
+    def _refresh_close_buttons(self) -> None:
+        for index in range(self.count()):
+            button = self.tabButton(index, QTabBar.RightSide)
+            if isinstance(button, QToolButton):
+                self._style_close_button(button)
+
+    def _style_close_button(self, button: QToolButton) -> None:
+        if self._theme == Theme.DARK:
+            color = "rgba(220, 225, 238, 210)"
+            hover_bg = "rgba(120, 140, 210, 90)"
+            press_bg = "rgba(120, 140, 210, 130)"
+        else:
+            color = "rgba(60, 70, 92, 210)"
+            hover_bg = "rgba(100, 140, 255, 70)"
+            press_bg = "rgba(100, 140, 255, 110)"
+
+        button.setStyleSheet(
+            f"""
+            QToolButton#workspaceTabCloseButton {{
+                border: none;
+                font-size: 14px;
+                padding: 0px;
+                color: {color};
+            }}
+            QToolButton#workspaceTabCloseButton:hover {{
+                background-color: {hover_bg};
+                border-radius: 10px;
+            }}
+            QToolButton#workspaceTabCloseButton:pressed {{
+                background-color: {press_bg};
+                border-radius: 10px;
+            }}
+            """
+        )
+
+
 class JsonWorkspace(QWidget):
     """Encapsulates a single JSON parsing workspace."""
 
@@ -440,8 +521,8 @@ class JsonWorkspace(QWidget):
         self._collapse_button = PushButton("折叠全部", self)
         self._collapse_button.setIcon(FluentIcon.ZOOM_OUT.icon())
 
-        button_height = 40
-        button_min_width = 128
+        button_height = 42
+        button_min_width = 138
         for btn in (
             self._parse_button,
             self._format_button,
@@ -457,12 +538,14 @@ class JsonWorkspace(QWidget):
 
         path_bar = QHBoxLayout()
         path_bar.setSpacing(12)
+        path_bar.setContentsMargins(0, 0, 0, 0)
         path_bar.addWidget(self._path_display, 1)
         path_bar.addWidget(self._copy_path_button)
         path_bar.addWidget(self._copy_value_button)
 
         button_bar = QHBoxLayout()
         button_bar.setSpacing(12)
+        button_bar.setContentsMargins(0, 0, 0, 0)
         button_bar.addWidget(self._parse_button)
         button_bar.addWidget(self._format_button)
         button_bar.addWidget(self._load_button)
@@ -473,8 +556,8 @@ class JsonWorkspace(QWidget):
         self._prepare_card(input_card)
         input_card.setObjectName("inputCard")
         input_layout = QVBoxLayout(input_card)
-        input_layout.setContentsMargins(20, 20, 20, 20)
-        input_layout.setSpacing(16)
+        input_layout.setContentsMargins(24, 24, 24, 24)
+        input_layout.setSpacing(18)
         title = BodyLabel("输入 JSON 数据", input_card)
         title.setObjectName("cardTitle")
         input_layout.addWidget(title)
@@ -485,8 +568,8 @@ class JsonWorkspace(QWidget):
         self._prepare_card(output_card)
         output_card.setObjectName("outputCard")
         output_layout = QVBoxLayout(output_card)
-        output_layout.setContentsMargins(20, 20, 20, 20)
-        output_layout.setSpacing(12)
+        output_layout.setContentsMargins(24, 24, 24, 24)
+        output_layout.setSpacing(18)
 
         header_row = QHBoxLayout()
         header_row.setSpacing(8)
@@ -505,13 +588,9 @@ class JsonWorkspace(QWidget):
         self._prepare_card(detail_card)
         detail_card.setObjectName("detailCard")
         detail_layout = QVBoxLayout(detail_card)
-        detail_layout.setContentsMargins(18, 18, 18, 18)
-        detail_layout.setSpacing(14)
+        detail_layout.setContentsMargins(24, 24, 24, 24)
+        detail_layout.setSpacing(18)
 
-        path_label_row = QHBoxLayout()
-        path_label_row.addWidget(CaptionLabel("JSON 路径", detail_card))
-        path_label_row.addStretch(1)
-        detail_layout.addLayout(path_label_row)
         detail_layout.addLayout(path_bar)
         detail_layout.addWidget(self._value_preview, 1)
 
@@ -536,11 +615,11 @@ class JsonWorkspace(QWidget):
         splitter.setStretchFactor(0, 3)
         splitter.setStretchFactor(1, 4)
         splitter.setChildrenCollapsible(False)
-        splitter.setHandleWidth(16)
+        splitter.setHandleWidth(24)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
-        layout.setSpacing(12)
+        layout.setSpacing(20)
         layout.addWidget(splitter)
 
     def _connect_signals(self) -> None:
@@ -628,8 +707,9 @@ class JsonWorkspace(QWidget):
             tree_alt_bg = "#313541"
             tree_border = "rgba(70, 78, 102, 150)"
             tree_text = "rgba(226, 230, 240, 220)"
-            header_bg = "rgba(58, 62, 78, 255)"
-            header_text = "rgba(225, 229, 240, 220)"
+            header_bg = "rgba(49, 53, 68, 220)"
+            header_text = "rgba(223, 228, 240, 220)"
+            header_border = "rgba(116, 132, 180, 140)"
             selection_bg = "rgba(88, 110, 150, 190)"
             selection_text = "rgba(244, 248, 255, 230)"
         else:
@@ -650,8 +730,9 @@ class JsonWorkspace(QWidget):
             tree_alt_bg = "#f5f8ff"
             tree_border = "rgba(185, 195, 215, 110)"
             tree_text = "rgba(44, 48, 60, 220)"
-            header_bg = "rgba(239, 241, 248, 230)"
-            header_text = "rgba(75, 82, 100, 220)"
+            header_bg = "rgba(242, 245, 252, 230)"
+            header_text = "rgba(70, 78, 100, 220)"
+            header_border = "rgba(176, 188, 224, 150)"
             selection_bg = "rgba(135, 169, 255, 120)"
             selection_text = "rgba(24, 32, 45, 220)"
 
@@ -679,15 +760,11 @@ class JsonWorkspace(QWidget):
                 background-color: {header_bg};
                 color: {header_text};
                 border: none;
-                padding: 8px 14px;
+                border-bottom: 1px solid {header_border};
+                padding: 6px 12px;
                 font-weight: 500;
                 font-size: 13px;
-            }}
-            QHeaderView::section:first {{
-                border-top-left-radius: 12px;
-            }}
-            QHeaderView::section:last {{
-                border-top-right-radius: 12px;
+                letter-spacing: 0.2px;
             }}
             QHeaderView::section:horizontal {{
                 margin: 0px;
@@ -1014,14 +1091,16 @@ class JsonParserWindow(QMainWindow):
         self._theme_combo = ComboBox(self)
         self._new_tab_button = PrimaryPushButton("新建数据页", self)
         self._new_tab_button.setIcon(FluentIcon.ADD.icon())
-        self._new_tab_button.setFixedHeight(40)
-        self._new_tab_button.setMinimumWidth(128)
+        self._new_tab_button.setFixedHeight(42)
+        self._new_tab_button.setMinimumWidth(138)
 
         self._tab_widget = QTabWidget(self)
         self._tab_widget.setDocumentMode(True)
-        self._tab_widget.setTabsClosable(True)
+        self._tab_widget.setTabsClosable(False)
         self._tab_widget.setMovable(True)
-        self._tab_widget.tabCloseRequested.connect(self._close_tab)
+        self._tab_bar = WorkspaceTabBar(self._tab_widget)
+        self._tab_bar.tabCloseRequested.connect(self._close_tab)
+        self._tab_widget.setTabBar(self._tab_bar)
         self._tab_widget.currentChanged.connect(self._on_tab_changed)
 
         self._build_ui()
@@ -1057,8 +1136,8 @@ class JsonParserWindow(QMainWindow):
         controls_card.setAutoFillBackground(False)
         controls_card.setObjectName("controlsCard")
         controls_layout = QHBoxLayout(controls_card)
-        controls_layout.setContentsMargins(20, 14, 20, 14)
-        controls_layout.setSpacing(16)
+        controls_layout.setContentsMargins(24, 16, 24, 16)
+        controls_layout.setSpacing(18)
 
         theme_label = CaptionLabel("主题模式", controls_card)
         self._theme_combo.addItem("浅色模式")
@@ -1075,8 +1154,8 @@ class JsonParserWindow(QMainWindow):
         central = QWidget(self)
         central.setObjectName("centralWidget")
         layout = QVBoxLayout(central)
-        layout.setContentsMargins(28, 28, 28, 28)
-        layout.setSpacing(16)
+        layout.setContentsMargins(32, 30, 32, 30)
+        layout.setSpacing(20)
         layout.addWidget(self._hero_card)
         layout.addWidget(self._controls_card)
         layout.addWidget(self._tab_widget, 1)
@@ -1148,95 +1227,93 @@ class JsonParserWindow(QMainWindow):
     def _apply_global_styles(self, theme: Theme) -> None:
         if theme == Theme.DARK:
             palette = {
-                "central_bg": "#1f212a",
-                "card_bg": "#2a2d38",
-                "detail_bg": "#21232c",
-                "text_color": "rgba(230, 235, 245, 220)",
-                "line_edit_bg": "#252833",
-                "line_edit_fg": "rgba(225, 230, 245, 220)",
-                "line_edit_border": "rgba(84, 94, 120, 180)",
-                "card_border": "rgba(70, 78, 102, 180)",
-                "detail_border": "rgba(92, 102, 130, 180)",
-                "combo_bg": "#2e323e",
-                "combo_fg": "rgba(225, 230, 245, 220)",
-                "combo_border": "rgba(84, 94, 120, 180)",
-                "splitter_color": "rgba(110, 118, 140, 140)",
-                "status_bg": "#21232c",
-                "status_fg": "rgba(220, 225, 236, 220)",
-                "status_border": "rgba(70, 78, 102, 170)",
-                "primary_bg": "#4c6dff",
-                "primary_bg_hover": "#5f7cff",
-                "primary_bg_press": "#3f59d6",
-                "primary_fg": "#f6f8ff",
-                "secondary_bg": "#373c4f",
-                "secondary_bg_hover": "#43485b",
-                "secondary_bg_press": "#2f3444",
-                "secondary_fg": "rgba(226, 230, 242, 220)",
-                "secondary_border": "rgba(108, 120, 155, 200)",
-                "secondary_border_hover": "rgba(134, 146, 182, 220)",
-                "danger_bg": "#d36262",
-                "danger_hover": "#df7272",
-                "danger_press": "#b75151",
-                "danger_border": "#eb8a8a",
+                "central_bg": "#1d2029",
+                "card_bg": "#272c3b",
+                "detail_bg": "#202431",
+                "text_color": "rgba(226, 231, 245, 220)",
+                "line_edit_bg": "#242837",
+                "line_edit_fg": "rgba(228, 232, 245, 220)",
+                "line_edit_border": "rgba(86, 98, 132, 200)",
+                "card_border": "rgba(64, 74, 104, 190)",
+                "detail_border": "rgba(88, 100, 138, 190)",
+                "combo_bg": "#292e3d",
+                "combo_fg": "rgba(224, 229, 242, 220)",
+                "combo_border": "rgba(92, 104, 140, 180)",
+                "splitter_color": "rgba(118, 132, 170, 130)",
+                "status_bg": "#1f232e",
+                "status_fg": "rgba(222, 227, 238, 220)",
+                "status_border": "rgba(72, 82, 116, 170)",
+                "primary_bg": "#4274ff",
+                "primary_bg_hover": "#5a86ff",
+                "primary_bg_press": "#335edc",
+                "primary_fg": "#f4f7ff",
+                "secondary_bg": "#30364a",
+                "secondary_bg_hover": "#3b4156",
+                "secondary_bg_press": "#2a3042",
+                "secondary_fg": "rgba(222, 228, 241, 220)",
+                "secondary_border": "rgba(115, 130, 170, 180)",
+                "secondary_border_hover": "rgba(138, 152, 192, 210)",
+                "danger_bg": "#d56767",
+                "danger_hover": "#df7777",
+                "danger_press": "#bf5656",
+                "danger_border": "#e88f8f",
                 "danger_fg": "#fff6f6",
-                "tab_active_bg": "#3f4257",
-                "tab_active_border": "rgba(110, 124, 170, 200)",
-                "tab_active_fg": "#f1f3fa",
-                "tab_inactive_fg": "rgba(165, 176, 210, 210)",
-                "tab_hover_bg": "#2f3346",
-                "tab_close_hover": "rgba(79, 110, 255, 0.22)",
-                "tab_close_press": "rgba(79, 110, 255, 0.32)",
-                "scrollbar_bg": "#2b2e3a",
-                "scrollbar_handle": "#6d77a8",
-                "scrollbar_handle_hover": "#7d88ba",
-                "scrollbar_handle_pressed": "#5f6796",
-                "hero_signature": "rgba(255, 255, 255, 215)",
+                "tab_active_bg": "#353a4d",
+                "tab_active_border": "rgba(108, 128, 180, 200)",
+                "tab_active_fg": "#f3f6ff",
+                "tab_inactive_fg": "rgba(166, 178, 210, 210)",
+                "tab_hover_bg": "#2d3144",
+                "scrollbar_handle_idle": "rgba(0, 0, 0, 0)",
+                "scrollbar_handle_hover": "rgba(138, 154, 210, 0.85)",
+                "scrollbar_handle_pressed": "rgba(120, 138, 200, 0.95)",
+                "scrollbar_track_hover": "rgba(76, 90, 128, 0.35)",
+                "scrollbar_track_active": "rgba(76, 90, 128, 0.45)",
+                "hero_signature": "rgba(255, 255, 255, 230)",
             }
         else:
             palette = {
-                "central_bg": "#f3f5fb",
+                "central_bg": "#f2f4fb",
                 "card_bg": "#ffffff",
                 "detail_bg": "#f8f9fe",
-                "text_color": "rgba(40, 45, 60, 220)",
+                "text_color": "rgba(38, 46, 66, 220)",
                 "line_edit_bg": "#ffffff",
-                "line_edit_fg": "rgba(40, 45, 60, 220)",
-                "line_edit_border": "rgba(160, 170, 190, 130)",
-                "card_border": "rgba(200, 210, 230, 150)",
+                "line_edit_fg": "rgba(40, 48, 68, 220)",
+                "line_edit_border": "rgba(168, 178, 204, 140)",
+                "card_border": "rgba(206, 214, 234, 160)",
                 "detail_border": "rgba(188, 198, 220, 150)",
                 "combo_bg": "#ffffff",
-                "combo_fg": "rgba(40, 45, 60, 220)",
-                "combo_border": "rgba(170, 180, 200, 140)",
-                "splitter_color": "rgba(120, 132, 160, 120)",
+                "combo_fg": "rgba(40, 48, 68, 220)",
+                "combo_border": "rgba(172, 182, 210, 150)",
+                "splitter_color": "rgba(132, 148, 200, 140)",
                 "status_bg": "#ffffff",
-                "status_fg": "rgba(40, 45, 60, 220)",
-                "status_border": "rgba(200, 210, 230, 150)",
-                "primary_bg": "#4f6eff",
-                "primary_bg_hover": "#6380ff",
-                "primary_bg_press": "#3a58d6",
+                "status_fg": "rgba(40, 48, 68, 220)",
+                "status_border": "rgba(206, 214, 234, 160)",
+                "primary_bg": "#3f6bff",
+                "primary_bg_hover": "#517bff",
+                "primary_bg_press": "#3258e0",
                 "primary_fg": "#ffffff",
                 "secondary_bg": "#eef1ff",
-                "secondary_bg_hover": "#e5e9ff",
-                "secondary_bg_press": "#d7defe",
-                "secondary_fg": "rgba(55, 64, 92, 220)",
-                "secondary_border": "rgba(166, 178, 216, 170)",
-                "secondary_border_hover": "rgba(140, 154, 204, 190)",
-                "danger_bg": "#f06464",
-                "danger_hover": "#f27878",
-                "danger_press": "#d85757",
-                "danger_border": "#f6a1a1",
+                "secondary_bg_hover": "#e4e8ff",
+                "secondary_bg_press": "#d8defe",
+                "secondary_fg": "rgba(55, 66, 98, 220)",
+                "secondary_border": "rgba(168, 182, 220, 180)",
+                "secondary_border_hover": "rgba(146, 162, 212, 210)",
+                "danger_bg": "#ef6666",
+                "danger_hover": "#f07a7a",
+                "danger_press": "#d85c5c",
+                "danger_border": "#f4a2a2",
                 "danger_fg": "#fff7f7",
                 "tab_active_bg": "#ffffff",
-                "tab_active_border": "rgba(200, 210, 230, 160)",
-                "tab_active_fg": "rgba(40, 45, 60, 220)",
-                "tab_inactive_fg": "rgba(120, 132, 160, 210)",
-                "tab_hover_bg": "#e4e9ff",
-                "tab_close_hover": "rgba(79, 110, 255, 0.14)",
-                "tab_close_press": "rgba(79, 110, 255, 0.24)",
-                "scrollbar_bg": "#e6e9f6",
-                "scrollbar_handle": "#a6b0dd",
-                "scrollbar_handle_hover": "#909cce",
-                "scrollbar_handle_pressed": "#7784be",
-                "hero_signature": "rgba(255, 255, 255, 220)",
+                "tab_active_border": "rgba(198, 206, 232, 170)",
+                "tab_active_fg": "rgba(40, 48, 68, 220)",
+                "tab_inactive_fg": "rgba(120, 134, 168, 210)",
+                "tab_hover_bg": "#e5ebff",
+                "scrollbar_handle_idle": "rgba(0, 0, 0, 0)",
+                "scrollbar_handle_hover": "rgba(120, 150, 230, 0.75)",
+                "scrollbar_handle_pressed": "rgba(104, 132, 210, 0.9)",
+                "scrollbar_track_hover": "rgba(160, 178, 228, 0.35)",
+                "scrollbar_track_active": "rgba(160, 178, 228, 0.45)",
+                "hero_signature": "rgba(255, 255, 255, 230)",
             }
 
         stylesheet_template = Template(
@@ -1251,7 +1328,7 @@ class JsonParserWindow(QMainWindow):
             }
             BodyLabel#heroTitle { font-size: 28px; font-weight: 600; }
             CaptionLabel#heroSubtitle { font-size: 14px; color: rgba(255, 255, 255, 210); }
-            CaptionLabel#heroSignature { font-size: 16px; font-weight: 500; letter-spacing: 0.4px; color: ${hero_signature}; margin-top: 6px; }
+            CaptionLabel#heroSignature { font-size: 18px; font-weight: 500; letter-spacing: 0.6px; color: ${hero_signature}; margin-top: 4px; }
             CardWidget#controlsCard {
                 border-radius: 18px;
                 background-color: ${card_bg};
@@ -1261,10 +1338,10 @@ class JsonParserWindow(QMainWindow):
                 border-radius: 20px;
                 background-color: ${card_bg};
                 border: 1px solid ${card_border};
-                padding: 4px;
+                padding: 6px;
             }
             CardWidget#detailCard {
-                border-radius: 16px;
+                border-radius: 18px;
                 background-color: ${detail_bg};
                 border: 1px solid ${detail_border};
             }
@@ -1281,22 +1358,21 @@ class JsonParserWindow(QMainWindow):
             }
             LineEdit#filterBox { min-width: 240px; }
             ComboBox {
-                min-width: 140px;
+                min-width: 150px;
                 background-color: ${combo_bg};
                 color: ${combo_fg};
                 border-radius: 10px;
                 border: 1px solid ${combo_border};
                 padding: 4px 12px;
             }
-            BodyLabel#cardTitle { font-size: 15px; font-weight: 500; color: ${text_color}; }
+            BodyLabel#cardTitle { font-size: 14px; font-weight: 400; color: ${text_color}; }
             PrimaryPushButton {
                 border-radius: 18px;
-                padding: 6px 20px;
+                padding: 6px 24px;
                 background-color: ${primary_bg};
                 color: ${primary_fg};
                 border: none;
-                font-weight: 500;
-                min-height: 40px;
+                min-height: 42px;
             }
             PrimaryPushButton:hover {
                 background-color: ${primary_bg_hover};
@@ -1305,17 +1381,16 @@ class JsonParserWindow(QMainWindow):
                 background-color: ${primary_bg_press};
             }
             PrimaryPushButton:disabled {
-                background-color: rgba(120, 130, 160, 100);
-                color: rgba(255, 255, 255, 110);
+                background-color: rgba(120, 130, 160, 90);
+                color: rgba(255, 255, 255, 120);
             }
             PushButton {
                 border-radius: 18px;
-                padding: 6px 20px;
+                padding: 6px 24px;
                 background-color: ${secondary_bg};
                 color: ${secondary_fg};
                 border: 1px solid ${secondary_border};
-                font-weight: 500;
-                min-height: 40px;
+                min-height: 42px;
             }
             PushButton:hover {
                 background-color: ${secondary_bg_hover};
@@ -1325,9 +1400,9 @@ class JsonParserWindow(QMainWindow):
                 background-color: ${secondary_bg_press};
             }
             PushButton:disabled {
-                background-color: rgba(120, 130, 160, 70);
-                color: rgba(210, 215, 230, 120);
-                border: 1px solid rgba(150, 160, 185, 80);
+                background-color: rgba(120, 130, 160, 60);
+                color: rgba(210, 215, 230, 110);
+                border: 1px solid rgba(150, 160, 185, 70);
             }
             PushButton#dangerButton {
                 background-color: ${danger_bg};
@@ -1347,17 +1422,17 @@ class JsonParserWindow(QMainWindow):
             }
             QTabWidget::tab-bar {
                 alignment: left;
-                margin: 6px 16px 2px 16px;
+                margin: 8px 20px 4px 20px;
             }
             QTabBar {
                 qproperty-drawBase: 0;
                 background: transparent;
             }
             QTabBar::tab {
-                border-radius: 14px;
-                padding: 10px 22px;
-                margin: 4px 6px;
-                min-width: 160px;
+                border-radius: 16px;
+                padding: 10px 28px;
+                margin: 4px 8px;
+                min-width: 280px;
                 color: ${tab_inactive_fg};
                 background-color: transparent;
             }
@@ -1365,7 +1440,7 @@ class JsonParserWindow(QMainWindow):
                 background-color: ${tab_active_bg};
                 color: ${tab_active_fg};
                 border: 1px solid ${tab_active_border};
-                font-weight: 600;
+                font-weight: 500;
             }
             QTabBar::tab:!selected {
                 background-color: transparent;
@@ -1373,28 +1448,18 @@ class JsonParserWindow(QMainWindow):
             QTabBar::tab:hover {
                 background-color: ${tab_hover_bg};
             }
-            QTabBar::close-button {
-                subcontrol-position: right;
-                width: 18px;
-                height: 18px;
-                border-radius: 9px;
-                background: transparent;
-                margin-left: 8px;
-            }
-            QTabBar::close-button:hover {
-                background: ${tab_close_hover};
-            }
-            QTabBar::close-button:pressed {
-                background: ${tab_close_press};
+            QSplitter {
+                padding: 0px;
             }
             QSplitter::handle {
                 background-color: transparent;
-                width: 16px;
+                width: 24px;
+                margin: 0px 12px;
             }
             QSplitter::handle:horizontal:hover,
             QSplitter::handle:horizontal:pressed {
                 background-color: ${splitter_color};
-                border-radius: 8px;
+                border-radius: 12px;
             }
             QStatusBar {
                 background-color: ${status_bg};
@@ -1403,41 +1468,55 @@ class JsonParserWindow(QMainWindow):
                 padding: 4px 12px;
             }
             QScrollBar:vertical {
-                background: ${scrollbar_bg};
-                width: 12px;
-                margin: 4px 2px 4px 2px;
-                border-radius: 6px;
+                background: transparent;
+                width: 10px;
+                margin: 4px 4px 4px 0px;
             }
             QScrollBar::handle:vertical {
-                background: ${scrollbar_handle};
-                border-radius: 6px;
-                min-height: 30px;
+                background-color: ${scrollbar_handle_idle};
+                border-radius: 5px;
+                min-height: 28px;
             }
             QScrollBar::handle:vertical:hover {
-                background: ${scrollbar_handle_hover};
+                background-color: ${scrollbar_handle_hover};
             }
             QScrollBar::handle:vertical:pressed {
-                background: ${scrollbar_handle_pressed};
+                background-color: ${scrollbar_handle_pressed};
+            }
+            QScrollBar:vertical:hover {
+                background-color: ${scrollbar_track_hover};
+                border-radius: 6px;
+            }
+            QScrollBar:vertical:pressed {
+                background-color: ${scrollbar_track_active};
+                border-radius: 6px;
             }
             QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
                 height: 0px;
             }
             QScrollBar:horizontal {
-                background: ${scrollbar_bg};
-                height: 12px;
-                margin: 2px 4px 2px 4px;
-                border-radius: 6px;
+                background: transparent;
+                height: 10px;
+                margin: 0px 4px 4px 4px;
             }
             QScrollBar::handle:horizontal {
-                background: ${scrollbar_handle};
-                border-radius: 6px;
-                min-width: 30px;
+                background-color: ${scrollbar_handle_idle};
+                border-radius: 5px;
+                min-width: 28px;
             }
             QScrollBar::handle:horizontal:hover {
-                background: ${scrollbar_handle_hover};
+                background-color: ${scrollbar_handle_hover};
             }
             QScrollBar::handle:horizontal:pressed {
-                background: ${scrollbar_handle_pressed};
+                background-color: ${scrollbar_handle_pressed};
+            }
+            QScrollBar:horizontal:hover {
+                background-color: ${scrollbar_track_hover};
+                border-radius: 6px;
+            }
+            QScrollBar:horizontal:pressed {
+                background-color: ${scrollbar_track_active};
+                border-radius: 6px;
             }
             QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
                 width: 0px;
@@ -1449,6 +1528,7 @@ class JsonParserWindow(QMainWindow):
         self._hero_card.set_theme(theme)
         new_tab_icon_color = QColor(255, 255, 255) if theme == Theme.LIGHT else QColor(244, 247, 255)
         self._new_tab_button.setIcon(resolve_fluent_icon("ADD", color=new_tab_icon_color))
+        self._tab_bar.set_theme(theme)
 
 
 def main() -> None:
