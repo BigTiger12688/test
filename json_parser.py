@@ -2,6 +2,7 @@
 
 import json
 from pathlib import Path
+from string import Template
 from typing import Any, Dict, Optional
 
 from PyQt5.QtCore import QPoint, QRect, QRectF, QSize, Qt, pyqtSignal
@@ -1083,269 +1084,276 @@ class JsonParserWindow(QMainWindow):
 
     def _apply_global_styles(self, theme: Theme) -> None:
         if theme == Theme.DARK:
-            central_bg = "#1f212a"
-            card_bg = "#2a2d38"
-            detail_bg = "#21232c"
-            text_color = "rgba(230, 235, 245, 220)"
-            line_edit_bg = "#252833"
-            line_edit_fg = "rgba(225, 230, 245, 220)"
-            line_edit_border = "rgba(84, 94, 120, 180)"
-            card_border = "rgba(70, 78, 102, 180)"
-            detail_border = "rgba(92, 102, 130, 180)"
-            combo_bg = "#2e323e"
-            combo_fg = "rgba(225, 230, 245, 220)"
-            combo_border = "rgba(84, 94, 120, 180)"
-            splitter_color = "rgba(110, 118, 140, 140)"
-            status_bg = "#21232c"
-            status_fg = "rgba(220, 225, 236, 220)"
-            status_border = "rgba(70, 78, 102, 170)"
-            primary_bg = "#4b6dff"
-            primary_bg_hover = "#5d7cff"
-            primary_bg_press = "#3f5bd6"
-            primary_fg = "#f4f7ff"
-            secondary_bg = "#343744"
-            secondary_bg_hover = "#3f4252"
-            secondary_bg_press = "#2e313d"
-            secondary_fg = "rgba(220, 226, 240, 220)"
-            secondary_border = "rgba(96, 106, 136, 180)"
-            secondary_border_hover = "rgba(124, 134, 168, 200)"
-            danger_bg = "#c24b4b"
-            danger_hover = "#d85a5a"
-            danger_press = "#a83f3f"
-            danger_border = "#de6f6f"
-            danger_fg = "#fff5f5"
-            tab_active_bg = "#3b3f52"
-            tab_active_border = "rgba(96, 106, 136, 180)"
-            tab_active_fg = "#f1f3fa"
-            tab_inactive_fg = "rgba(160, 170, 200, 200)"
-            tab_hover_bg = "#2f3242"
-            scrollbar_bg = "#2a2d38"
-            scrollbar_handle = "#6772a2"
-            scrollbar_handle_hover = "#7a85b8"
-            scrollbar_handle_pressed = "#596394"
-            hero_signature = "rgba(255, 255, 255, 215)"
+            palette = {
+                "central_bg": "#1f212a",
+                "card_bg": "#2a2d38",
+                "detail_bg": "#21232c",
+                "text_color": "rgba(230, 235, 245, 220)",
+                "line_edit_bg": "#252833",
+                "line_edit_fg": "rgba(225, 230, 245, 220)",
+                "line_edit_border": "rgba(84, 94, 120, 180)",
+                "card_border": "rgba(70, 78, 102, 180)",
+                "detail_border": "rgba(92, 102, 130, 180)",
+                "combo_bg": "#2e323e",
+                "combo_fg": "rgba(225, 230, 245, 220)",
+                "combo_border": "rgba(84, 94, 120, 180)",
+                "splitter_color": "rgba(110, 118, 140, 140)",
+                "status_bg": "#21232c",
+                "status_fg": "rgba(220, 225, 236, 220)",
+                "status_border": "rgba(70, 78, 102, 170)",
+                "primary_bg": "#4b6dff",
+                "primary_bg_hover": "#5d7cff",
+                "primary_bg_press": "#3f5bd6",
+                "primary_fg": "#f4f7ff",
+                "secondary_bg": "#343744",
+                "secondary_bg_hover": "#3f4252",
+                "secondary_bg_press": "#2e313d",
+                "secondary_fg": "rgba(220, 226, 240, 220)",
+                "secondary_border": "rgba(96, 106, 136, 180)",
+                "secondary_border_hover": "rgba(124, 134, 168, 200)",
+                "danger_bg": "#c24b4b",
+                "danger_hover": "#d85a5a",
+                "danger_press": "#a83f3f",
+                "danger_border": "#de6f6f",
+                "danger_fg": "#fff5f5",
+                "tab_active_bg": "#3b3f52",
+                "tab_active_border": "rgba(96, 106, 136, 180)",
+                "tab_active_fg": "#f1f3fa",
+                "tab_inactive_fg": "rgba(160, 170, 200, 200)",
+                "tab_hover_bg": "#2f3242",
+                "scrollbar_bg": "#2a2d38",
+                "scrollbar_handle": "#6772a2",
+                "scrollbar_handle_hover": "#7a85b8",
+                "scrollbar_handle_pressed": "#596394",
+                "hero_signature": "rgba(255, 255, 255, 215)",
+            }
         else:
-            central_bg = "#f3f5fb"
-            card_bg = "#ffffff"
-            detail_bg = "#f8f9fe"
-            text_color = "rgba(40, 45, 60, 220)"
-            line_edit_bg = "#ffffff"
-            line_edit_fg = "rgba(40, 45, 60, 220)"
-            line_edit_border = "rgba(160, 170, 190, 130)"
-            card_border = "rgba(200, 210, 230, 150)"
-            detail_border = "rgba(188, 198, 220, 150)"
-            combo_bg = "#ffffff"
-            combo_fg = "rgba(40, 45, 60, 220)"
-            combo_border = "rgba(170, 180, 200, 140)"
-            splitter_color = "rgba(120, 132, 160, 120)"
-            status_bg = "#ffffff"
-            status_fg = "rgba(40, 45, 60, 220)"
-            status_border = "rgba(200, 210, 230, 150)"
-            primary_bg = "#3f6fff"
-            primary_bg_hover = "#5c85ff"
-            primary_bg_press = "#2f56d6"
-            primary_fg = "#ffffff"
-            secondary_bg = "#f1f4ff"
-            secondary_bg_hover = "#e8edff"
-            secondary_bg_press = "#dde4ff"
-            secondary_fg = "rgba(60, 68, 92, 220)"
-            secondary_border = "rgba(170, 180, 205, 150)"
-            secondary_border_hover = "rgba(150, 162, 195, 170)"
-            danger_bg = "#ed5c5c"
-            danger_hover = "#f26e6e"
-            danger_press = "#d84f4f"
-            danger_border = "#f49797"
-            danger_fg = "#fff9f9"
-            tab_active_bg = "#ffffff"
-            tab_active_border = "rgba(200, 210, 230, 150)"
-            tab_active_fg = "rgba(40, 45, 60, 220)"
-            tab_inactive_fg = "rgba(120, 132, 160, 200)"
-            tab_hover_bg = "#e8edff"
-            scrollbar_bg = "#e4e8f5"
-            scrollbar_handle = "#9faad4"
-            scrollbar_handle_hover = "#8a96c7"
-            scrollbar_handle_pressed = "#6f7cb5"
-            hero_signature = "rgba(255, 255, 255, 220)"
+            palette = {
+                "central_bg": "#f3f5fb",
+                "card_bg": "#ffffff",
+                "detail_bg": "#f8f9fe",
+                "text_color": "rgba(40, 45, 60, 220)",
+                "line_edit_bg": "#ffffff",
+                "line_edit_fg": "rgba(40, 45, 60, 220)",
+                "line_edit_border": "rgba(160, 170, 190, 130)",
+                "card_border": "rgba(200, 210, 230, 150)",
+                "detail_border": "rgba(188, 198, 220, 150)",
+                "combo_bg": "#ffffff",
+                "combo_fg": "rgba(40, 45, 60, 220)",
+                "combo_border": "rgba(170, 180, 200, 140)",
+                "splitter_color": "rgba(120, 132, 160, 120)",
+                "status_bg": "#ffffff",
+                "status_fg": "rgba(40, 45, 60, 220)",
+                "status_border": "rgba(200, 210, 230, 150)",
+                "primary_bg": "#3f6fff",
+                "primary_bg_hover": "#5c85ff",
+                "primary_bg_press": "#2f56d6",
+                "primary_fg": "#ffffff",
+                "secondary_bg": "#f1f4ff",
+                "secondary_bg_hover": "#e8edff",
+                "secondary_bg_press": "#dde4ff",
+                "secondary_fg": "rgba(60, 68, 92, 220)",
+                "secondary_border": "rgba(170, 180, 205, 150)",
+                "secondary_border_hover": "rgba(150, 162, 195, 170)",
+                "danger_bg": "#ed5c5c",
+                "danger_hover": "#f26e6e",
+                "danger_press": "#d84f4f",
+                "danger_border": "#f49797",
+                "danger_fg": "#fff9f9",
+                "tab_active_bg": "#ffffff",
+                "tab_active_border": "rgba(200, 210, 230, 150)",
+                "tab_active_fg": "rgba(40, 45, 60, 220)",
+                "tab_inactive_fg": "rgba(120, 132, 160, 200)",
+                "tab_hover_bg": "#e8edff",
+                "scrollbar_bg": "#e4e8f5",
+                "scrollbar_handle": "#9faad4",
+                "scrollbar_handle_hover": "#8a96c7",
+                "scrollbar_handle_pressed": "#6f7cb5",
+                "hero_signature": "rgba(255, 255, 255, 220)",
+            }
 
-        stylesheet = f"""
-            #centralWidget {{
-                background: {central_bg};
-            }}
-            CardWidget#heroCard {{
+        stylesheet_template = Template(
+            """
+            #centralWidget {
+                background: ${central_bg};
+            }
+            CardWidget#heroCard {
                 border-radius: 22px;
                 background-color: transparent;
                 color: white;
-            }}
-            BodyLabel#heroTitle {{ font-size: 28px; font-weight: 600; }}
-            CaptionLabel#heroSubtitle {{ font-size: 14px; color: rgba(255, 255, 255, 210); }}
-            CaptionLabel#heroSignature {{ font-size: 13px; color: {hero_signature}; margin-top: 4px; }}
-            CardWidget#controlsCard {{
+            }
+            BodyLabel#heroTitle { font-size: 28px; font-weight: 600; }
+            CaptionLabel#heroSubtitle { font-size: 14px; color: rgba(255, 255, 255, 210); }
+            CaptionLabel#heroSignature { font-size: 13px; color: ${hero_signature}; margin-top: 4px; }
+            CardWidget#controlsCard {
                 border-radius: 18px;
-                background-color: {card_bg};
-                border: 1px solid {card_border};
-            }}
-            CardWidget#inputCard, CardWidget#outputCard {{
+                background-color: ${card_bg};
+                border: 1px solid ${card_border};
+            }
+            CardWidget#inputCard, CardWidget#outputCard {
                 border-radius: 20px;
-                background-color: {card_bg};
-                border: 1px solid {card_border};
-            }}
-            CardWidget#detailCard {{
+                background-color: ${card_bg};
+                border: 1px solid ${card_border};
+            }
+            CardWidget#detailCard {
                 border-radius: 16px;
-                background-color: {detail_bg};
-                border: 1px solid {detail_border};
-            }}
-            QWidget#workspacePage {{
+                background-color: ${detail_bg};
+                border: 1px solid ${detail_border};
+            }
+            QWidget#workspacePage {
                 background-color: transparent;
-            }}
-            LineEdit {{
+            }
+            LineEdit {
                 border-radius: 10px;
                 padding: 6px 12px;
                 font-size: 13px;
-                background-color: {line_edit_bg};
-                color: {line_edit_fg};
-                border: 1px solid {line_edit_border};
-            }}
-            LineEdit#filterBox {{ min-width: 240px; }}
-            ComboBox {{
+                background-color: ${line_edit_bg};
+                color: ${line_edit_fg};
+                border: 1px solid ${line_edit_border};
+            }
+            LineEdit#filterBox { min-width: 240px; }
+            ComboBox {
                 min-width: 140px;
-                background-color: {combo_bg};
-                color: {combo_fg};
+                background-color: ${combo_bg};
+                color: ${combo_fg};
                 border-radius: 10px;
-                border: 1px solid {combo_border};
+                border: 1px solid ${combo_border};
                 padding: 4px 12px;
-            }}
-            BodyLabel#cardTitle {{ font-size: 16px; font-weight: 600; color: {text_color}; }}
-            PrimaryPushButton {{
+            }
+            BodyLabel#cardTitle { font-size: 16px; font-weight: 600; color: ${text_color}; }
+            PrimaryPushButton {
                 border-radius: 18px;
                 padding: 6px 18px;
-                background-color: {primary_bg};
-                color: {primary_fg};
+                background-color: ${primary_bg};
+                color: ${primary_fg};
                 border: none;
                 font-weight: 600;
-            }}
-            PrimaryPushButton:hover {{
-                background-color: {primary_bg_hover};
-            }}
-            PrimaryPushButton:pressed {{
-                background-color: {primary_bg_press};
-            }}
-            PrimaryPushButton:disabled {{
+            }
+            PrimaryPushButton:hover {
+                background-color: ${primary_bg_hover};
+            }
+            PrimaryPushButton:pressed {
+                background-color: ${primary_bg_press};
+            }
+            PrimaryPushButton:disabled {
                 background-color: rgba(120, 130, 160, 100);
                 color: rgba(255, 255, 255, 110);
-            }}
-            PushButton {{
+            }
+            PushButton {
                 border-radius: 18px;
                 padding: 6px 18px;
-                background-color: {secondary_bg};
-                color: {secondary_fg};
-                border: 1px solid {secondary_border};
-            }}
-            PushButton:hover {{
-                background-color: {secondary_bg_hover};
-                border: 1px solid {secondary_border_hover};
-            }}
-            PushButton:pressed {{
-                background-color: {secondary_bg_press};
-            }}
-            PushButton:disabled {{
+                background-color: ${secondary_bg};
+                color: ${secondary_fg};
+                border: 1px solid ${secondary_border};
+            }
+            PushButton:hover {
+                background-color: ${secondary_bg_hover};
+                border: 1px solid ${secondary_border_hover};
+            }
+            PushButton:pressed {
+                background-color: ${secondary_bg_press};
+            }
+            PushButton:disabled {
                 background-color: rgba(120, 130, 160, 70);
                 color: rgba(210, 215, 230, 120);
                 border: 1px solid rgba(150, 160, 185, 80);
-            }}
-            PushButton#dangerButton {{
-                background-color: {danger_bg};
-                color: {danger_fg};
-                border: 1px solid {danger_border};
-            }}
-            PushButton#dangerButton:hover {{
-                background-color: {danger_hover};
-                border-color: {danger_border};
-            }}
-            PushButton#dangerButton:pressed {{
-                background-color: {danger_press};
-            }}
-            QTabWidget::pane {{
+            }
+            PushButton#dangerButton {
+                background-color: ${danger_bg};
+                color: ${danger_fg};
+                border: 1px solid ${danger_border};
+            }
+            PushButton#dangerButton:hover {
+                background-color: ${danger_hover};
+                border-color: ${danger_border};
+            }
+            PushButton#dangerButton:pressed {
+                background-color: ${danger_press};
+            }
+            QTabWidget::pane {
                 border: none;
                 background: transparent;
-            }}
-            QTabWidget::tab-bar {{
+            }
+            QTabWidget::tab-bar {
                 alignment: left;
                 margin: 6px 10px 2px 10px;
-            }}
+            }
             QTabBar {
                 qproperty-drawBase: 0;
                 background: transparent;
             }
-            QTabBar::tab {{
+            QTabBar::tab {
                 border-radius: 14px;
                 padding: 8px 20px;
                 margin: 4px;
-                color: {tab_inactive_fg};
+                color: ${tab_inactive_fg};
                 background-color: transparent;
-            }}
-            QTabBar::tab:selected {{
-                background-color: {tab_active_bg};
-                color: {tab_active_fg};
-                border: 1px solid {tab_active_border};
+            }
+            QTabBar::tab:selected {
+                background-color: ${tab_active_bg};
+                color: ${tab_active_fg};
+                border: 1px solid ${tab_active_border};
                 font-weight: 600;
-            }}
-            QTabBar::tab:!selected {{
+            }
+            QTabBar::tab:!selected {
                 background-color: transparent;
-            }}
-            QTabBar::tab:hover {{
-                background-color: {tab_hover_bg};
-            }}
-            QSplitter::handle {{
-                background-color: {splitter_color};
+            }
+            QTabBar::tab:hover {
+                background-color: ${tab_hover_bg};
+            }
+            QSplitter::handle {
+                background-color: ${splitter_color};
                 width: 2px;
-            }}
-            QStatusBar {{
-                background-color: {status_bg};
-                color: {status_fg};
-                border-top: 1px solid {status_border};
+            }
+            QStatusBar {
+                background-color: ${status_bg};
+                color: ${status_fg};
+                border-top: 1px solid ${status_border};
                 padding: 4px 12px;
-            }}
-            QScrollBar:vertical {{
-                background: {scrollbar_bg};
+            }
+            QScrollBar:vertical {
+                background: ${scrollbar_bg};
                 width: 12px;
                 margin: 4px 2px 4px 2px;
                 border-radius: 6px;
-            }}
-            QScrollBar::handle:vertical {{
-                background: {scrollbar_handle};
+            }
+            QScrollBar::handle:vertical {
+                background: ${scrollbar_handle};
                 border-radius: 6px;
                 min-height: 30px;
-            }}
-            QScrollBar::handle:vertical:hover {{
-                background: {scrollbar_handle_hover};
-            }}
-            QScrollBar::handle:vertical:pressed {{
-                background: {scrollbar_handle_pressed};
-            }}
-            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {{
+            }
+            QScrollBar::handle:vertical:hover {
+                background: ${scrollbar_handle_hover};
+            }
+            QScrollBar::handle:vertical:pressed {
+                background: ${scrollbar_handle_pressed};
+            }
+            QScrollBar::add-line:vertical, QScrollBar::sub-line:vertical {
                 height: 0px;
-            }}
-            QScrollBar:horizontal {{
-                background: {scrollbar_bg};
+            }
+            QScrollBar:horizontal {
+                background: ${scrollbar_bg};
                 height: 12px;
                 margin: 2px 4px 2px 4px;
                 border-radius: 6px;
-            }}
-            QScrollBar::handle:horizontal {{
-                background: {scrollbar_handle};
+            }
+            QScrollBar::handle:horizontal {
+                background: ${scrollbar_handle};
                 border-radius: 6px;
                 min-width: 30px;
-            }}
-            QScrollBar::handle:horizontal:hover {{
-                background: {scrollbar_handle_hover};
-            }}
-            QScrollBar::handle:horizontal:pressed {{
-                background: {scrollbar_handle_pressed};
-            }}
-            QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {{
+            }
+            QScrollBar::handle:horizontal:hover {
+                background: ${scrollbar_handle_hover};
+            }
+            QScrollBar::handle:horizontal:pressed {
+                background: ${scrollbar_handle_pressed};
+            }
+            QScrollBar::add-line:horizontal, QScrollBar::sub-line:horizontal {
                 width: 0px;
-            }}
-        """
+            }
+            """
+        )
+        stylesheet = stylesheet_template.substitute(palette)
         self.setStyleSheet(stylesheet)
         self._hero_card.set_theme(theme)
         new_tab_icon_color = QColor(255, 255, 255) if theme == Theme.LIGHT else QColor(244, 247, 255)
