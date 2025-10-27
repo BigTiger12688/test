@@ -860,6 +860,7 @@ class JsonParserWindow(QMainWindow):
         setTheme(self._current_theme)
 
         self._hero_card = GradientHeroCard(self)
+        self._controls_card = CardWidget(self)
         self._theme_combo = ComboBox(self)
         self._new_tab_button = PrimaryPushButton("新建数据页", self)
         self._new_tab_button.setIcon(FluentIcon.ADD.icon())
@@ -896,9 +897,9 @@ class JsonParserWindow(QMainWindow):
         hero_layout.addWidget(title)
         hero_layout.addWidget(subtitle)
 
-        controls_card = CardWidget(self)
+        controls_card = self._controls_card
+        controls_card.setParent(self)
         controls_card.setObjectName("controlsCard")
-        self._controls_card = controls_card
         controls_layout = QHBoxLayout(controls_card)
         controls_layout.setContentsMargins(20, 14, 20, 14)
         controls_layout.setSpacing(16)
