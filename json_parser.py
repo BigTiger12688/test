@@ -206,6 +206,8 @@ class GradientHeroCard(CardWidget):
         super().__init__(parent)
         self.setObjectName("heroCard")
         self.setAttribute(Qt.WA_StyledBackground, True)
+        self.setAttribute(Qt.WA_TranslucentBackground, True)
+        self.setAutoFillBackground(False)
         self._current_theme = Theme.LIGHT
         self._light_colors = (QColor(79, 157, 255), QColor(109, 91, 255))
         self._dark_colors = (QColor(75, 91, 220), QColor(58, 122, 254))
@@ -217,9 +219,9 @@ class GradientHeroCard(CardWidget):
         self.update()
 
     def paintEvent(self, event) -> None:  # type: ignore[override]
-        super().paintEvent(event)
         painter = QPainter(self)
         painter.setRenderHint(QPainter.Antialiasing)
+        painter.setPen(Qt.NoPen)
         rect = self.rect().adjusted(1, 1, -1, -1)
         path = QPainterPath()
         radius = 22.0
@@ -239,38 +241,73 @@ class JsonWorkspace(QWidget):
 
     titleChanged = pyqtSignal(str)
 
-    COLOR_SCHEMES: Dict[str, Dict[str, QColor]] = {
+    COLOR_SCHEMES: Dict[str, Dict[str, Dict[str, QColor]]] = {
         "清新配色": {
-            "object": QColor(67, 140, 255),
-            "array": QColor(52, 201, 121),
-            "string": QColor(232, 99, 132),
-            "number": QColor(255, 170, 76),
-            "bool": QColor(143, 108, 255),
-            "null": QColor(148, 165, 180),
-            "default": QColor(50, 52, 58),
+            "light": {
+                "object": QColor(67, 140, 255),
+                "array": QColor(52, 201, 121),
+                "string": QColor(232, 99, 132),
+                "number": QColor(255, 170, 76),
+                "bool": QColor(143, 108, 255),
+                "null": QColor(148, 165, 180),
+                "default": QColor(50, 52, 58),
+            },
+            "dark": {
+                "object": QColor(144, 185, 255),
+                "array": QColor(132, 226, 180),
+                "string": QColor(255, 168, 198),
+                "number": QColor(255, 205, 146),
+                "bool": QColor(196, 171, 255),
+                "null": QColor(172, 184, 201),
+                "default": QColor(224, 228, 238),
+            },
         },
         "绚丽配色": {
-            "object": QColor(255, 100, 124),
-            "array": QColor(72, 202, 228),
-            "string": QColor(255, 206, 84),
-            "number": QColor(149, 125, 173),
-            "bool": QColor(84, 160, 255),
-            "null": QColor(205, 214, 244),
-            "default": QColor(30, 30, 40),
+            "light": {
+                "object": QColor(255, 100, 124),
+                "array": QColor(72, 202, 228),
+                "string": QColor(255, 206, 84),
+                "number": QColor(149, 125, 173),
+                "bool": QColor(84, 160, 255),
+                "null": QColor(205, 214, 244),
+                "default": QColor(30, 30, 40),
+            },
+            "dark": {
+                "object": QColor(255, 149, 167),
+                "array": QColor(140, 226, 238),
+                "string": QColor(255, 217, 120),
+                "number": QColor(197, 171, 230),
+                "bool": QColor(148, 193, 255),
+                "null": QColor(209, 218, 238),
+                "default": QColor(226, 229, 236),
+            },
         },
         "专业配色": {
-            "object": QColor(82, 121, 255),
-            "array": QColor(42, 157, 143),
-            "string": QColor(231, 111, 81),
-            "number": QColor(244, 162, 97),
-            "bool": QColor(38, 70, 83),
-            "null": QColor(131, 149, 167),
-            "default": QColor(33, 37, 41),
+            "light": {
+                "object": QColor(82, 121, 255),
+                "array": QColor(42, 157, 143),
+                "string": QColor(231, 111, 81),
+                "number": QColor(244, 162, 97),
+                "bool": QColor(38, 70, 83),
+                "null": QColor(131, 149, 167),
+                "default": QColor(33, 37, 41),
+            },
+            "dark": {
+                "object": QColor(165, 195, 255),
+                "array": QColor(118, 205, 194),
+                "string": QColor(241, 155, 128),
+                "number": QColor(255, 204, 153),
+                "bool": QColor(120, 150, 166),
+                "null": QColor(180, 195, 210),
+                "default": QColor(218, 224, 235),
+            },
         },
     }
 
     def __init__(self, parent: Optional[QWidget] = None) -> None:
         super().__init__(parent)
+        self.setObjectName("workspacePage")
+        self.setAttribute(Qt.WA_StyledBackground, True)
         self._current_scheme = "清新配色"
         self._theme = Theme.LIGHT
         self._build_ui()
@@ -498,11 +535,11 @@ class JsonWorkspace(QWidget):
                 " font-size: 12px;"
                 " border-radius: 10px;"
                 " padding: 10px;"
-                " background-color: rgba(32, 35, 44, 235);"
-                " color: rgba(232, 236, 245, 220);"
-                " selection-background-color: rgba(92, 110, 150, 180);"
-                " selection-color: rgba(245, 248, 255, 230);"
-                " border: 1px solid rgba(78, 86, 110, 150);"
+                " background-color: rgba(34, 37, 46, 240);"
+                " color: rgba(232, 236, 245, 225);"
+                " selection-background-color: rgba(112, 134, 182, 200);"
+                " selection-color: rgba(245, 248, 255, 235);"
+                " border: 1px solid rgba(92, 102, 130, 170);"
                 " }"
             )
             tree_bg = "rgba(42, 45, 56, 240)"
@@ -524,7 +561,7 @@ class JsonWorkspace(QWidget):
                 " color: rgba(30, 33, 44, 210);"
                 " selection-background-color: rgba(135, 169, 255, 120);"
                 " selection-color: rgba(24, 32, 45, 220);"
-                " border: 1px solid rgba(170, 180, 200, 120);"
+                " border: 1px solid rgba(200, 210, 230, 140);"
                 " }"
             )
             tree_bg = "rgba(255, 255, 255, 0.98)"
@@ -794,19 +831,25 @@ class JsonWorkspace(QWidget):
         return total_visible
 
     def _refresh_tree_colors(self) -> None:
-        palette = self.COLOR_SCHEMES[self._current_scheme]
+        scheme = self.COLOR_SCHEMES.get(self._current_scheme)
+        if not scheme:
+            return
+        palette = scheme["dark" if self._theme == Theme.DARK else "light"]
 
         def _apply(item: QTreeWidgetItem) -> None:
             type_name = item.data(0, Qt.UserRole + 2)
             base_color = palette.get(type_name, palette.get("default", QColor("#444")))
-            color = QColor(base_color)
+            key_color = QColor(base_color)
+            value_color = QColor(base_color)
             if self._theme == Theme.DARK:
-                color = color.lighter(135)
-                color.setAlpha(235)
+                key_color.setAlpha(240)
+                value_color = QColor(base_color).lighter(120)
+                value_color.setAlpha(235)
             else:
-                color.setAlpha(255)
-            for column in range(2):
-                item.setForeground(column, QBrush(color))
+                key_color.setAlpha(255)
+                value_color.setAlpha(240)
+            item.setForeground(0, QBrush(key_color))
+            item.setForeground(1, QBrush(value_color))
             for idx in range(item.childCount()):
                 _apply(item.child(idx))
 
@@ -872,8 +915,7 @@ class JsonParserWindow(QMainWindow):
         self._tab_widget.tabCloseRequested.connect(self._close_tab)
         self._tab_widget.currentChanged.connect(self._on_tab_changed)
 
-        self._status_bar = self.statusBar()
-        self._status_bar.setSizeGripEnabled(False)
+        self._active_status_bar: Optional[InfoBar] = None
 
         self._build_ui()
         self._apply_global_styles(self._current_theme)
@@ -928,8 +970,19 @@ class JsonParserWindow(QMainWindow):
         self._apply_card_shadows(self._hero_card, self._controls_card)
 
     def show_status_message(self, message: str, timeout: int = 3500) -> None:
-        if hasattr(self, "_status_bar") and self._status_bar is not None:
-            self._status_bar.showMessage(message, timeout)
+        if self._active_status_bar is not None:
+            self._active_status_bar.close()
+        self._active_status_bar = InfoBar.info(
+            title="提示",
+            content=message,
+            parent=self,
+            position=InfoBarPosition.TOP_RIGHT,
+            duration=timeout,
+        )
+        self._active_status_bar.closed.connect(self._clear_status_notification)
+
+    def _clear_status_notification(self) -> None:
+        self._active_status_bar = None
 
     # ------------------------------------------------------------------
     # Workspace helpers
@@ -996,23 +1049,29 @@ class JsonParserWindow(QMainWindow):
             card_bg = "rgba(42, 45, 56, 235)"
             detail_bg = "rgba(33, 35, 44, 230)"
             text_color = "rgba(230, 235, 245, 220)"
-            status_color = "rgba(198, 205, 220, 200)"
             line_edit_bg = "rgba(38, 41, 52, 235)"
             line_edit_fg = "rgba(225, 230, 245, 220)"
             line_edit_border = "rgba(78, 86, 110, 160)"
-            status_bar_bg = "rgba(29, 31, 40, 245)"
-            status_bar_border = "rgba(64, 70, 90, 160)"
+            card_border = "rgba(70, 78, 102, 170)"
+            detail_border = "rgba(92, 102, 130, 170)"
+            combo_bg = "rgba(46, 50, 62, 235)"
+            combo_fg = "rgba(225, 230, 245, 220)"
+            combo_border = "rgba(84, 94, 120, 170)"
+            splitter_color = "rgba(110, 118, 140, 140)"
         else:
             central_bg = "#f3f5fb"
             card_bg = "rgba(255, 255, 255, 235)"
             detail_bg = "rgba(248, 249, 254, 230)"
             text_color = "rgba(40, 45, 60, 220)"
-            status_color = "rgba(70, 80, 110, 180)"
             line_edit_bg = "rgba(255, 255, 255, 0.98)"
             line_edit_fg = "rgba(40, 45, 60, 220)"
             line_edit_border = "rgba(160, 170, 190, 110)"
-            status_bar_bg = "rgba(255, 255, 255, 230)"
-            status_bar_border = "rgba(210, 215, 230, 160)"
+            card_border = "rgba(200, 210, 230, 150)"
+            detail_border = "rgba(188, 198, 220, 150)"
+            combo_bg = "rgba(255, 255, 255, 0.96)"
+            combo_fg = "rgba(40, 45, 60, 220)"
+            combo_border = "rgba(170, 180, 200, 120)"
+            splitter_color = "rgba(120, 132, 160, 140)"
 
         stylesheet = f"""
             #centralWidget {{
@@ -1028,14 +1087,20 @@ class JsonParserWindow(QMainWindow):
             CardWidget#controlsCard {{
                 border-radius: 18px;
                 background-color: {card_bg};
+                border: 1px solid {card_border};
             }}
             CardWidget#inputCard, CardWidget#outputCard {{
                 border-radius: 20px;
                 background-color: {card_bg};
+                border: 1px solid {card_border};
             }}
             CardWidget#detailCard {{
                 border-radius: 16px;
                 background-color: {detail_bg};
+                border: 1px solid {detail_border};
+            }}
+            QWidget#workspacePage {{
+                background-color: transparent;
             }}
             LineEdit {{
                 border-radius: 10px;
@@ -1046,18 +1111,39 @@ class JsonParserWindow(QMainWindow):
                 border: 1px solid {line_edit_border};
             }}
             LineEdit#filterBox {{ min-width: 240px; }}
+            ComboBox {{
+                min-width: 140px;
+                background-color: {combo_bg};
+                color: {combo_fg};
+                border-radius: 10px;
+                border: 1px solid {combo_border};
+                padding: 4px 12px;
+            }}
             BodyLabel#cardTitle {{ font-size: 16px; font-weight: 600; color: {text_color}; }}
             PrimaryPushButton, PushButton {{
                 border-radius: 18px;
                 padding: 6px 14px;
             }}
-            QStatusBar {{
-                background-color: {status_bar_bg};
-                color: {status_color};
-                border-top: 1px solid {status_bar_border};
-            }}
-            QStatusBar::item {{
+            QTabWidget::pane {{
                 border: none;
+                background: transparent;
+            }}
+            QTabBar::tab {{
+                border-radius: 14px;
+                padding: 6px 18px;
+                margin: 4px;
+                color: {text_color};
+            }}
+            QTabBar::tab:selected {{
+                background-color: {card_bg};
+                border: 1px solid {card_border};
+            }}
+            QTabBar::tab:!selected {{
+                background-color: transparent;
+            }}
+            QSplitter::handle {{
+                background-color: {splitter_color};
+                width: 2px;
             }}
         """
         self.setStyleSheet(stylesheet)
