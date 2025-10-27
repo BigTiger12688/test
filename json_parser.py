@@ -42,6 +42,17 @@ from qfluentwidgets import (
 )
 
 
+def resolve_fluent_icon(primary: str, fallback: str = "FOLDER_ADD"):
+    """Return a QIcon for the requested Fluent icon, falling back when missing."""
+
+    icon = getattr(FluentIcon, primary, None)
+    if icon is None:
+        icon = getattr(FluentIcon, fallback, None)
+    if icon is None:
+        icon = FluentIcon.ADD
+    return icon.icon()
+
+
 class LineNumberArea(QWidget):
     """Auxiliary widget for rendering line numbers next to the editor."""
 
@@ -264,7 +275,7 @@ class JsonWorkspace(QWidget):
         self._format_button = PushButton("格式化", self)
         self._format_button.setIcon(FluentIcon.CODE.icon())
         self._load_button = PushButton("打开文件", self)
-        self._load_button.setIcon(FluentIcon.FOLDER.icon())
+        self._load_button.setIcon(resolve_fluent_icon("FOLDER"))
         self._clear_button = PushButton("清空", self)
         self._clear_button.setIcon(FluentIcon.DELETE.icon())
 
