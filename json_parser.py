@@ -27,6 +27,7 @@ from PyQt5.QtWidgets import (
     QPlainTextEdit,
     QTextEdit,
     QSplitter,
+    QStatusBar,
     QTabWidget,
     QTreeWidget,
     QTreeWidgetItem,
@@ -901,6 +902,8 @@ class JsonParserWindow(QMainWindow):
 
         self._current_theme = Theme.LIGHT
         setTheme(self._current_theme)
+        self._status_bar = QStatusBar(self)
+        self.setStatusBar(self._status_bar)
 
         self._hero_card = GradientHeroCard(self)
         self._controls_card = CardWidget(self)
@@ -914,8 +917,6 @@ class JsonParserWindow(QMainWindow):
         self._tab_widget.setMovable(True)
         self._tab_widget.tabCloseRequested.connect(self._close_tab)
         self._tab_widget.currentChanged.connect(self._on_tab_changed)
-
-        self._active_status_bar: Optional[InfoBar] = None
 
         self._build_ui()
         self._apply_global_styles(self._current_theme)
@@ -970,26 +971,7 @@ class JsonParserWindow(QMainWindow):
         self._apply_card_shadows(self._hero_card, self._controls_card)
 
     def show_status_message(self, message: str, timeout: int = 3500) -> None:
-        if self._active_status_bar is not None:
-            self._active_status_bar.close()
-        bar = InfoBar.info(
-            title="提示",
-            content=message,
-            parent=self,
-            position=InfoBarPosition.TOP_RIGHT,
-            duration=timeout,
-        )
-        self._active_status_bar = bar
-        close_signal = getattr(bar, "closed", None)
-        if close_signal is not None and hasattr(close_signal, "connect"):
-            close_signal.connect(self._clear_status_notification)
-        else:
-            bar.destroyed.connect(lambda *_: self._clear_status_notification(bar))
-
-    def _clear_status_notification(self, bar: Optional[InfoBar] = None) -> None:
-        if bar is not None and bar is not self._active_status_bar:
-            return
-        self._active_status_bar = None
+        self._status_bar.showMessage(message, timeout)
 
     # ------------------------------------------------------------------
     # Workspace helpers
@@ -1065,6 +1047,9 @@ class JsonParserWindow(QMainWindow):
             combo_fg = "rgba(225, 230, 245, 220)"
             combo_border = "rgba(84, 94, 120, 170)"
             splitter_color = "rgba(110, 118, 140, 140)"
+            status_bg = "rgba(33, 35, 44, 230)"
+            status_fg = "rgba(220, 225, 236, 220)"
+            status_border = "rgba(70, 78, 102, 170)"
         else:
             central_bg = "#f3f5fb"
             card_bg = "rgba(255, 255, 255, 235)"
@@ -1079,6 +1064,9 @@ class JsonParserWindow(QMainWindow):
             combo_fg = "rgba(40, 45, 60, 220)"
             combo_border = "rgba(170, 180, 200, 120)"
             splitter_color = "rgba(120, 132, 160, 140)"
+            status_bg = "rgba(255, 255, 255, 0.94)"
+            status_fg = "rgba(40, 45, 60, 220)"
+            status_border = "rgba(200, 210, 230, 150)"
 
         stylesheet = f"""
             #centralWidget {{
@@ -1151,6 +1139,12 @@ class JsonParserWindow(QMainWindow):
             QSplitter::handle {{
                 background-color: {splitter_color};
                 width: 2px;
+            }}
+            QStatusBar {{
+                background-color: {status_bg};
+                color: {status_fg};
+                border-top: 1px solid {status_border};
+                padding: 4px 12px;
             }}
         """
         self.setStyleSheet(stylesheet)
