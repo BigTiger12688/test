@@ -972,16 +972,22 @@ class JsonParserWindow(QMainWindow):
     def show_status_message(self, message: str, timeout: int = 3500) -> None:
         if self._active_status_bar is not None:
             self._active_status_bar.close()
-        self._active_status_bar = InfoBar.info(
+        bar = InfoBar.info(
             title="提示",
             content=message,
             parent=self,
             position=InfoBarPosition.TOP_RIGHT,
             duration=timeout,
         )
-        self._active_status_bar.closed.connect(self._clear_status_notification)
+        self._active_status_bar = bar
+        if hasattr(bar, "closed"):
+            bar.closed.connect(self._clear_status_notification)
+        else:
+            bar.destroyed.connect(lambda *_: self._clear_status_notification(bar))
 
-    def _clear_status_notification(self) -> None:
+    def _clear_status_notification(self, bar: Optional[InfoBar] = None) -> None:
+        if bar is not None and bar is not self._active_status_bar:
+            return
         self._active_status_bar = None
 
     # ------------------------------------------------------------------
