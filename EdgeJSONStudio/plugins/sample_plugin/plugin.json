@@ -1,0 +1,5 @@
+{
+  "name": "示例工具",
+  "module": "plugins.sample_plugin.plugin",
+  "enabled": true
+}
